@@ -5,7 +5,9 @@ export default defineNuxtConfig({
 
   modules: [
     '@pinia/nuxt',
-    '@nuxtjs/tailwindcss'
+    '@nuxtjs/tailwindcss',
+    'pinia-plugin-persistedstate/nuxt',
+    '@vueuse/nuxt'
   ],
 
   srcDir: 'app/',

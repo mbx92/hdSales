@@ -1,6 +1,19 @@
 <script setup lang="ts">
-const { data: rates, pending, refresh } = await useFetch('/api/exchange-rates')
-const { data: latestRate } = await useFetch('/api/exchange-rates/latest')
+import { IconPlus, IconInfoCircle } from '@tabler/icons-vue'
+
+// Type untuk response API
+interface ExchangeRate {
+  id: string
+  fromCurrency: string
+  toCurrency: string
+  rate: number
+  effectiveDate: string
+  createdAt: string
+  updatedAt: string
+}
+
+const { data: rates, pending, refresh } = await useFetch<ExchangeRate[]>('/api/exchange-rates')
+const { data: latestRate } = await useFetch<ExchangeRate>('/api/exchange-rates/latest')
 
 const showModal = ref(false)
 const loading = ref(false)
@@ -42,9 +55,7 @@ const formatRate = (rate: number) => {
         <p class="text-base-content/60">Kelola kurs mata uang untuk konversi</p>
       </div>
       <button @click="showModal = true" class="btn btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
+        <IconPlus class="w-5 h-5 mr-2" :stroke-width="1.5" />
         Update Kurs
       </button>
     </div>
@@ -160,9 +171,7 @@ const formatRate = (rate: number) => {
           </div>
 
           <div class="alert alert-info">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <IconInfoCircle class="w-6 h-6 shrink-0" :stroke-width="1.5" />
             <span>Kurs baru akan berlaku untuk transaksi setelah ini.</span>
           </div>
 

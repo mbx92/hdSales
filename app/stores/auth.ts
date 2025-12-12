@@ -7,63 +7,62 @@ interface User {
     role: string
 }
 
-interface AuthState {
-    user: User | null
-    token: string | null
-    isAuthenticated: boolean
-}
+export const useAuthStore = defineStore('auth', () => {
+    const user = ref<User | null>(null)
+    const token = ref<string | null>(null)
+    const isAuthenticated = ref(false)
 
-export const useAuthStore = defineStore('auth', {
-    state: (): AuthState => ({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-    }),
+    async function login(email: string, password: string) {
+        try {
+            const response = await $fetch<{ success: boolean; user: User; token: string; message?: string }>('/api/auth/login', {
+                method: 'POST',
+                body: { email, password },
+            })
 
-    actions: {
-        async login(email: string, password: string) {
-            try {
-                const response = await $fetch('/api/auth/login', {
-                    method: 'POST',
-                    body: { email, password },
-                })
-
-                if (response.success) {
-                    this.user = response.user
-                    this.token = response.token
-                    this.isAuthenticated = true
-                    return { success: true }
-                }
-                return { success: false, message: 'Login gagal' }
-            } catch (error: any) {
-                return { success: false, message: error.data?.message || 'Login gagal' }
+            if (response.success) {
+                user.value = response.user
+                token.value = response.token
+                isAuthenticated.value = true
+                return { success: true }
             }
-        },
+            return { success: false, message: 'Login gagal' }
+        } catch (error: any) {
+            return { success: false, message: error.data?.message || 'Login gagal' }
+        }
+    }
 
-        async logout() {
-            try {
-                await $fetch('/api/auth/logout', { method: 'POST' })
-            } catch (e) {
-                // Ignore errors
-            }
-            this.user = null
-            this.token = null
-            this.isAuthenticated = false
-        },
+    async function logout() {
+        try {
+            await $fetch('/api/auth/logout', { method: 'POST' })
+        } catch (e) {
+            // Ignore errors
+        }
+        user.value = null
+        token.value = null
+        isAuthenticated.value = false
+    }
 
-        async checkAuth() {
-            try {
-                const user = await $fetch('/api/auth/me')
-                this.user = user
-                this.isAuthenticated = true
-                return true
-            } catch (e) {
-                this.user = null
-                this.isAuthenticated = false
-                return false
-            }
-        },
-    },
+    async function checkAuth(): Promise<boolean> {
+        try {
+            const userData = await $fetch<User>('/api/auth/me')
+            user.value = userData
+            isAuthenticated.value = true
+            return true
+        } catch (e) {
+            user.value = null
+            isAuthenticated.value = false
+            return false
+        }
+    }
 
+    return {
+        user,
+        token,
+        isAuthenticated,
+        login,
+        logout,
+        checkAuth,
+    }
+}, {
     persist: true,
 })

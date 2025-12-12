@@ -178,6 +178,7 @@ model CashFlow {
   // Relations
   costs            Cost[]
   saleTransactions SaleTransaction[]
+  sparepartSales   SparepartSale[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -185,6 +186,109 @@ model CashFlow {
   @@index([type, transactionDate])
   @@index([currency])
   @@map("cash_flows")
+}
+
+// ============================================
+// SPAREPARTS & ACCESSORIES
+// ============================================
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  spareparts  Sparepart[]
+  
+  @@map("suppliers")
+}
+
+model Sparepart {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  name            String
+  category        String   // SPAREPART, ACCESSORY, APPAREL, OTHER
+  brand           String?
+  description     String?
+  
+  // Pricing
+  purchasePrice   Float
+  sellingPrice    Float
+  currency        String   @default("IDR")
+  
+  // Stock
+  stock           Int      @default(0)
+  minStock        Int      @default(1)
+  
+  // Supplier
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  
+  status          String   @default("ACTIVE")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  saleItems       SparepartSaleItem[]
+  
+  @@map("spareparts")
+}
+
+model SparepartSale {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  saleDate        DateTime @default(now())
+  
+  // Buyer info
+  customerName    String?
+  customerPhone   String?
+  
+  // Payment
+  paymentMethod   String   @default("CASH")
+  
+  // Totals
+  subtotal        Float
+  discount        Float    @default(0)
+  total           Float
+  paidAmount      Float
+  
+  currency        String   @default("IDR")
+  exchangeRate    Float    @default(1)
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  items           SparepartSaleItem[]
+  
+  // Relation to CashFlow
+  cashFlowId      String?
+  cashFlow        CashFlow? @relation(fields: [cashFlowId], references: [id])
+  
+  @@map("sparepart_sales")
+}
+
+model SparepartSaleItem {
+  id              String   @id @default(cuid())
+  
+  saleId          String
+  sale            SparepartSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  
+  sparepartId     String
+  sparepart       Sparepart @relation(fields: [sparepartId], references: [id])
+  
+  quantity        Int
+  unitPrice       Float
+  subtotal        Float
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("sparepart_sale_items")
 }
 
 // ============================================

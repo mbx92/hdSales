@@ -1,11 +1,24 @@
 <script setup lang="ts">
 import { IconArrowUp, IconArrowDown, IconChartBar } from '@tabler/icons-vue'
 
-const selectedPeriod = ref('month')
-const startDate = ref('')
-const endDate = ref('')
+interface CashflowSummary {
+  summary: {
+    totalIncome: number
+    totalOutcome: number
+    netCashFlow: number
+  }
+  byCategory: Record<string, { income: number; outcome: number }>
+  period: {
+    start?: Date
+    end?: Date
+  }
+}
 
-const { data: summary, pending: summaryPending, refresh: refreshSummary } = await useFetch('/api/cashflow/summary', {
+const selectedPeriod = ref('month')
+const startDate = ref<string | undefined>(undefined)
+const endDate = ref<string | undefined>(undefined)
+
+const { data: summary, pending: summaryPending, refresh: refreshSummary } = await useFetch<CashflowSummary>('/api/cashflow/summary', {
   query: { startDate, endDate },
   watch: [startDate, endDate],
 })

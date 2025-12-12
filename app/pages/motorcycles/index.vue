@@ -67,16 +67,14 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
       <div class="card-body py-4">
         <div class="flex flex-col md:flex-row gap-4">
           <div class="form-control flex-1">
-            <div class="input-group">
+            <div class="relative">
               <input
                 v-model="search"
                 type="text"
                 placeholder="Cari VIN, model, atau owner..."
-                class="input input-bordered w-full bg-base-300"
+                class="input input-bordered w-full bg-base-300 pr-10"
               />
-              <button class="btn btn-square btn-primary">
-                <IconSearch class="w-5 h-5" :stroke-width="1.5" />
-              </button>
+              <IconSearch class="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40" :stroke-width="1.5" />
             </div>
           </div>
           <select v-model="status" class="select select-bordered bg-base-300 w-full md:w-48">
@@ -169,7 +167,7 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
     </div>
 
     <!-- Pagination -->
-    <div v-if="data?.meta?.totalPages > 1" class="flex justify-center">
+    <div v-if="data?.meta?.totalPages && data.meta.totalPages > 1" class="flex justify-center">
       <div class="join">
         <button
           class="join-item btn"
@@ -179,11 +177,11 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
           «
         </button>
         <button class="join-item btn">
-          Halaman {{ page }} dari {{ data.meta.totalPages }}
+          Halaman {{ page }} dari {{ data?.meta?.totalPages }}
         </button>
         <button
           class="join-item btn"
-          :disabled="page >= data.meta.totalPages"
+          :disabled="page >= (data?.meta?.totalPages || 1)"
           @click="page++"
         >
           »
