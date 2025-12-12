@@ -1,0 +1,76 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+    content: [
+        './app/components/**/*.{js,vue,ts}',
+        './app/layouts/**/*.vue',
+        './app/pages/**/*.vue',
+        './app/plugins/**/*.{js,ts}',
+        './app/app.vue',
+        './app/error.vue',
+    ],
+    theme: {
+        extend: {
+            fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+                'hd-orange': {
+                    50: '#fff7ed',
+                    100: '#ffedd5',
+                    200: '#fed7aa',
+                    300: '#fdba74',
+                    400: '#fb923c',
+                    500: '#f97316',
+                    600: '#ea580c',
+                    700: '#c2410c',
+                    800: '#9a3412',
+                    900: '#7c2d12',
+                },
+                'hd-gold': {
+                    50: '#fefce8',
+                    100: '#fef9c3',
+                    200: '#fef08a',
+                    300: '#fde047',
+                    400: '#facc15',
+                    500: '#eab308',
+                    600: '#ca8a04',
+                    700: '#a16207',
+                    800: '#854d0e',
+                    900: '#713f12',
+                },
+            },
+        },
+    },
+    plugins: [require('daisyui')],
+    daisyui: {
+        themes: [
+            {
+                hdsales: {
+                    'primary': '#f97316',
+                    'primary-content': '#ffffff',
+                    'secondary': '#eab308',
+                    'secondary-content': '#000000',
+                    'accent': '#3b82f6',
+                    'accent-content': '#ffffff',
+                    'neutral': '#1f2937',
+                    'neutral-content': '#d1d5db',
+                    'base-100': '#111827',
+                    'base-200': '#1f2937',
+                    'base-300': '#374151',
+                    'base-content': '#f3f4f6',
+                    'info': '#0ea5e9',
+                    'info-content': '#ffffff',
+                    'success': '#22c55e',
+                    'success-content': '#ffffff',
+                    'warning': '#f59e0b',
+                    'warning-content': '#000000',
+                    'error': '#ef4444',
+                    'error-content': '#ffffff',
+                },
+            },
+            'dark',
+            'business',
+        ],
+        darkTheme: 'hdsales',
+    },
+}

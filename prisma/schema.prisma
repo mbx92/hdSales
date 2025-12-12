@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MASTER DATA
+// ============================================
+
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  fromCurrency  String   // USD
+  toCurrency    String   // IDR
+  rate          Float
+  effectiveDate DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency, effectiveDate])
+  @@index([effectiveDate])
+  @@map("exchange_rates")
+}
+
+// ============================================
+// MOTORCYCLE MANAGEMENT
+// ============================================
+
+model Motorcycle {
+  id           String   @id @default(cuid())
+  vin          String   @unique
+  brand        String   @default("Harley Davidson")
+  model        String
+  year         Int
+  color        String?
+  mileage      Int?
+  condition    String   @default("USED") // USED/NEW
+
+  // Financial
+  currency     String   // IDR or USD
+  totalCost    Float    @default(0) // HPP (auto calculated)
+  sellingPrice Float? // Harga jual (manual input)
+  profit       Float? // Profit (auto calculated)
+
+  // Status: INSPECTION, AVAILABLE, SOLD
+  status       String   @default("INSPECTION")
+
+  // Location & Owner
+  ownerName     String?
+  ownerPhone    String?
+  ownerLocation String?
+
+  // Metadata
+  notes     String?
+  photos    String   @default("[]") // JSON array of image URLs
+  documents String   @default("[]") // JSON array: STNK, BPKB, etc
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  costs           Cost[]
+  saleTransaction SaleTransaction?
+
+  @@index([status])
+  @@index([vin])
+  @@index([createdAt])
+  @@map("motorcycles")
+}
+
+// ============================================
+// COST MANAGEMENT (OUTCOME)
+// ============================================
+
+model Cost {
+  id           String      @id @default(cuid())
+  motorcycleId String?
+  motorcycle   Motorcycle? @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+
+  // Component: INSPECTION, PURCHASE, TOWING, DETAILING, SERVICE, IMPORT_FEES, STORAGE, DOCUMENTATION, OTHER
+  component   String
+  description String
+  amount      Float
+  currency    String
+
+  // Conversion to IDR (for reporting)
+  exchangeRate Float
+  amountIdr    Float // Auto calculated
+
+  transactionDate DateTime @default(now())
+  paymentMethod   String? // CASH, TRANSFER, etc
+
+  // Metadata
+  receipt String? // URL to receipt photo
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to cash flow
+  cashFlow   CashFlow @relation(fields: [cashFlowId], references: [id])
+  cashFlowId String
+
+  @@index([motorcycleId])
+  @@index([component])
+  @@index([transactionDate])
+  @@map("costs")
+}
+
+// ============================================
+// SALE TRANSACTION (INCOME)
+// ============================================
+
+model SaleTransaction {
+  id           String     @id @default(cuid())
+  motorcycleId String     @unique
+  motorcycle   Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+
+  sellingPrice Float
+  currency     String
+
+  // Conversion to IDR
+  exchangeRate    Float
+  sellingPriceIdr Float
+
+  // Profit calculation
+  totalCost    Float // Copy from motorcycle HPP
+  profit       Float // Auto calculated
+  profitMargin Float // Percentage
+
+  // Customer info
+  buyerName    String
+  buyerPhone   String?
+  buyerAddress String?
+
+  // Payment: CASH, TRANSFER, INSTALLMENT
+  paymentMethod   String
+  paidAmount      Float
+  remainingAmount Float  @default(0)
+
+  saleDate  DateTime @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to cash flow
+  cashFlow   CashFlow @relation(fields: [cashFlowId], references: [id])
+  cashFlowId String
+
+  @@index([saleDate])
+  @@map("sale_transactions")
+}
+
+// ============================================
+// CASH FLOW (DUAL CURRENCY BOOKKEEPING)
+// ============================================
+
+model CashFlow {
+  id   String @id @default(cuid())
+  type String // INCOME, OUTCOME
+
+  // Amount in original currency
+  amount   Float
+  currency String
+
+  // Conversion to IDR (for unified reporting)
+  exchangeRate Float
+  amountIdr    Float
+
+  description String
+  category    String // MOTORCYCLE_SALE, INSPECTION, SERVICE, etc
+
+  transactionDate DateTime @default(now())
+
+  // Relations
+  costs            Cost[]
+  saleTransactions SaleTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, transactionDate])
+  @@index([currency])
+  @@map("cash_flows")
+}
+
+// ============================================
+// USER (Simple Owner Auth)
+// ============================================
+
+model User {
+  id       String @id @default(cuid())
+  email    String @unique
+  password String // Hashed with bcrypt
+  name     String
+  role     String @default("OWNER") // OWNER only
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
