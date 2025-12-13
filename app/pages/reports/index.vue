@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconFileSpreadsheet, IconFileTypePdf, IconFilter, IconCalendar, IconArrowUp, IconArrowDown, IconScale } from '@tabler/icons-vue'
+import { IconFileSpreadsheet, IconFileTypePdf, IconFilter, IconCalendar, IconArrowUp, IconArrowDown, IconScale, IconTrendingUp, IconTrendingDown } from '@tabler/icons-vue'
 import { useExport } from '~/composables/useExport'
 
 const { exportToExcel, exportToPDF } = useExport()
@@ -189,7 +189,7 @@ const handleExportPDF = async () => {
 
         <template v-else-if="report">
             <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div class="card bg-base-200 border border-base-300">
                     <div class="card-body py-4">
                         <div class="flex items-center gap-3">
@@ -243,6 +243,24 @@ const handleExportPDF = async () => {
                             <div>
                                 <p class="text-xs text-base-content/60">Jumlah Transaksi</p>
                                 <p class="text-xl font-bold text-info">{{ report.summary.transactionCount }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Net Profit Card -->
+                <div class="card bg-gradient-to-br from-secondary/20 to-primary/20 border border-secondary/30">
+                    <div class="card-body py-4">
+                        <div class="flex items-center gap-3">
+                            <div :class="['p-3 rounded-lg', (report.summary.netProfit || 0) >= 0 ? 'bg-success/30' : 'bg-error/30']">
+                                <IconTrendingUp v-if="(report.summary.netProfit || 0) >= 0" class="w-6 h-6 text-success" :stroke-width="1.5" />
+                                <IconTrendingDown v-else class="w-6 h-6 text-error" :stroke-width="1.5" />
+                            </div>
+                            <div>
+                                <p class="text-xs text-base-content/60">Net Profit (Margin)</p>
+                                <p :class="['text-xl font-bold', (report.summary.netProfit || 0) >= 0 ? 'text-success' : 'text-error']">
+                                    {{ formatCurrency(report.summary.netProfit || 0) }}
+                                </p>
                             </div>
                         </div>
                     </div>

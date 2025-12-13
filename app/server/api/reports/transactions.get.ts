@@ -62,11 +62,36 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // Get all transactions matching filters
-    const transactions = await prisma.cashFlow.findMany({
-        where,
-        orderBy: { transactionDate: 'desc' },
-    })
+    // Build date filter for sales
+    const salesDateFilter = dateStart ? {
+        saleDate: { gte: dateStart, lte: dateEnd }
+    } : {}
+
+    // Get all transactions and profit data
+    const [transactions, motorcycleProfit, sparepartSales] = await Promise.all([
+        prisma.cashFlow.findMany({
+            where,
+            orderBy: { transactionDate: 'desc' },
+        }),
+        // Get motorcycle profit (sum of margin)
+        prisma.saleTransaction.aggregate({
+            where: salesDateFilter,
+            _sum: { profit: true },
+        }),
+        // Get sparepart sales with items for margin calculation
+        prisma.sparepartSale.findMany({
+            where: salesDateFilter,
+            include: {
+                items: {
+                    include: {
+                        sparepart: {
+                            select: { purchasePrice: true }
+                        }
+                    }
+                }
+            }
+        }),
+    ])
 
     // Calculate summary
     const totalIncome = transactions
@@ -78,6 +103,18 @@ export default defineEventHandler(async (event) => {
         .reduce((sum, t) => sum + t.amountIdr, 0)
 
     const netBalance = totalIncome - totalOutcome
+
+    // Calculate net profit from margins
+    const motorcycleProfitTotal = motorcycleProfit._sum?.profit || 0
+
+    const sparepartProfitTotal = sparepartSales.reduce((total, sale) => {
+        return total + sale.items.reduce((itemTotal, item) => {
+            const margin = (item.unitPrice - item.sparepart.purchasePrice) * item.quantity
+            return itemTotal + margin
+        }, 0)
+    }, 0)
+
+    const netProfit = motorcycleProfitTotal + sparepartProfitTotal
 
     // Group by category
     const categoryTotals: Record<string, { income: number; outcome: number }> = {}
@@ -105,6 +142,9 @@ export default defineEventHandler(async (event) => {
             totalIncome,
             totalOutcome,
             netBalance,
+            netProfit, // Total margin from motor + sparepart
+            motorcycleProfit: motorcycleProfitTotal,
+            sparepartProfit: sparepartProfitTotal,
             transactionCount: transactions.length,
         },
         categoryTotals,
@@ -118,3 +158,4 @@ export default defineEventHandler(async (event) => {
         },
     }
 })
+

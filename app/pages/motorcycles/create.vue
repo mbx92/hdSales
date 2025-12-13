@@ -188,9 +188,8 @@ const handleSubmit = async () => {
               <label class="label">
                 <span class="label-text font-medium">Currency *</span>
               </label>
-              <select v-model="form.currency" class="select select-bordered bg-base-300" required>
+              <select v-model="form.currency" class="select select-bordered bg-base-300" required disabled>
                 <option value="IDR">IDR (Rupiah)</option>
-                <option value="USD">USD (Dollar)</option>
               </select>
             </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconInfoCircle } from '@tabler/icons-vue'
+import { IconPlus, IconInfoCircle, IconRefresh } from '@tabler/icons-vue'
 
 // Type untuk response API
 interface ExchangeRate {
@@ -12,18 +12,59 @@ interface ExchangeRate {
   updatedAt: string
 }
 
+interface FetchRateResponse {
+  success: boolean
+  rate: number
+  lastUpdate?: string
+  source: string
+  error?: string
+}
+
 const { data: rates, pending, refresh } = await useFetch<ExchangeRate[]>('/api/exchange-rates')
-const { data: latestRate } = await useFetch<ExchangeRate>('/api/exchange-rates/latest')
-const { showError } = useAlert()
+const { data: latestRate, refresh: refreshLatest } = await useFetch<ExchangeRate>('/api/exchange-rates/latest')
+const { showError, showWarning, showSuccess } = useAlert()
 
 const showModal = ref(false)
 const loading = ref(false)
+const fetchingRate = ref(false)
+const apiSource = ref('')
+const apiLastUpdate = ref('')
 
 const form = ref({
   fromCurrency: 'USD',
   toCurrency: 'IDR',
   rate: '',
 })
+
+// Fetch latest rate from external API when modal opens
+const openModal = async () => {
+  showModal.value = true
+  await fetchLatestRate()
+}
+
+const fetchLatestRate = async () => {
+  fetchingRate.value = true
+  try {
+    const response = await $fetch<FetchRateResponse>('/api/exchange-rates/fetch-latest')
+    
+    if (response.success) {
+      form.value.rate = String(Math.round(response.rate))
+      apiSource.value = response.source
+      apiLastUpdate.value = response.lastUpdate || ''
+    } else {
+      // API failed, show warning and use fallback
+      showWarning(response.error || 'Gagal mengambil kurs dari API')
+      form.value.rate = String(response.rate)
+      apiSource.value = response.source
+    }
+  } catch (e: any) {
+    showError('Gagal terhubung ke API kurs')
+    form.value.rate = '15500' // Fallback
+    apiSource.value = 'Manual Input'
+  } finally {
+    fetchingRate.value = false
+  }
+}
 
 const handleSubmit = async () => {
   loading.value = true
@@ -34,7 +75,9 @@ const handleSubmit = async () => {
     })
     showModal.value = false
     form.value.rate = ''
+    showSuccess('Kurs berhasil diupdate!')
     refresh()
+    refreshLatest()
   } catch (e: any) {
     showError(e.data?.message || 'Gagal menyimpan kurs')
   } finally {
@@ -55,7 +98,7 @@ const formatRate = (rate: number) => {
         <h1 class="text-3xl font-bold">Pengaturan Kurs</h1>
         <p class="text-base-content/60">Kelola kurs mata uang untuk konversi</p>
       </div>
-      <button @click="showModal = true" class="btn btn-primary">
+      <button @click="openModal" class="btn btn-primary">
         <IconPlus class="w-5 h-5 mr-2" :stroke-width="1.5" />
         Update Kurs
       </button>
@@ -137,10 +180,18 @@ const formatRate = (rate: number) => {
     </div>
 
     <!-- Add Rate Modal -->
+    <Teleport to="body">
     <dialog :class="['modal', showModal && 'modal-open']">
       <div class="modal-box bg-base-200">
         <h3 class="font-bold text-lg mb-4">Update Kurs</h3>
-        <form @submit.prevent="handleSubmit" class="space-y-4">
+        
+        <!-- Loading state when fetching from API -->
+        <div v-if="fetchingRate" class="flex flex-col items-center py-8">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+          <p class="mt-4 text-base-content/60">Mengambil kurs terbaru dari API...</p>
+        </div>
+        
+        <form v-else @submit.prevent="handleSubmit" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div class="form-control">
               <label class="label"><span class="label-text">Dari</span></label>
@@ -157,23 +208,33 @@ const formatRate = (rate: number) => {
           </div>
 
           <div class="form-control">
-            <label class="label"><span class="label-text">Kurs Baru *</span></label>
+            <label class="label">
+              <span class="label-text">Kurs Baru *</span>
+              <button type="button" @click="fetchLatestRate" class="btn btn-ghost btn-xs gap-1">
+                <IconRefresh class="w-4 h-4" />
+                Refresh
+              </button>
+            </label>
             <input
               v-model="form.rate"
               type="number"
               step="0.01"
               placeholder="15500"
-              class="input input-bordered bg-base-300"
+              class="input input-bordered bg-base-300 text-xl font-bold"
               required
             />
             <label class="label">
-              <span class="label-text-alt">Contoh: 1 USD = 15500 IDR</span>
+              <span class="label-text-alt">1 USD = {{ formatRate(Number(form.rate) || 0) }} IDR</span>
+              <span v-if="apiSource" class="label-text-alt text-success">{{ apiSource }}</span>
             </label>
           </div>
 
           <div class="alert alert-info">
             <IconInfoCircle class="w-6 h-6 shrink-0" :stroke-width="1.5" />
-            <span>Kurs baru akan berlaku untuk transaksi setelah ini.</span>
+            <div>
+              <p>Kurs baru akan berlaku untuk transaksi setelah ini.</p>
+              <p v-if="apiLastUpdate" class="text-xs opacity-70 mt-1">API update: {{ apiLastUpdate }}</p>
+            </div>
           </div>
 
           <div class="modal-action">
@@ -189,5 +250,6 @@ const formatRate = (rate: number) => {
         <button @click="showModal = false">close</button>
       </form>
     </dialog>
+    </Teleport>
   </div>
 </template>

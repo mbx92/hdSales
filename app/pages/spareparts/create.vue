@@ -105,9 +105,8 @@ const handleSubmit = async () => {
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="form-control">
               <label class="label"><span class="label-text">Mata Uang</span></label>
-              <select v-model="form.currency" class="select select-bordered bg-base-300">
+              <select v-model="form.currency" class="select select-bordered bg-base-300" disabled>
                 <option value="IDR">IDR (Rupiah)</option>
-                <option value="USD">USD (Dollar)</option>
               </select>
             </div>
             <div class="form-control">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload } from '@tabler/icons-vue'
 
 const router = useRouter()
 const { showError, showWarning } = useAlert()
@@ -16,6 +16,7 @@ const discount = ref(0)
 const loading = ref(false)
 const showSuccessModal = ref(false)
 const lastInvoice = ref('')
+const lastSaleId = ref('')
 
 const filteredProducts = computed(() => {
   if (!search.value) return []
@@ -80,6 +81,7 @@ const processSale = async () => {
     })
     
     lastInvoice.value = res.invoiceNumber
+    lastSaleId.value = res.id
     showSuccessModal.value = true
     
     // Reset cart but keep page open for next sale
@@ -288,7 +290,15 @@ const formatCurrency = (value: number) => {
         <IconCheck class="w-16 h-16 mx-auto text-success mb-4" />
         <h3 class="font-bold text-lg">Transaksi Berhasil!</h3>
         <p class="py-4">Invoice #{{ lastInvoice }} telah dibuat.</p>
-        <div class="modal-action justify-center">
+        <div class="modal-action justify-center flex-wrap gap-2">
+          <NuxtLink 
+            :to="`/sales/sparepart-receipt/${lastSaleId}`" 
+            class="btn btn-secondary gap-2"
+            target="_blank"
+          >
+            <IconDownload class="w-4 h-4" />
+            E-Receipt
+          </NuxtLink>
           <button class="btn btn-primary" @click="showSuccessModal = false">
             Transaksi Baru
           </button>

@@ -12,7 +12,6 @@ const menuItems = [
   { path: '/sales', label: 'Penjualan', icon: IconCash },
   { path: '/reports', label: 'Laporan', icon: IconReportAnalytics },
   { path: '/cashflow', label: 'Cash Flow', icon: IconChartBar },
-  { path: '/settings/exchange-rates', label: 'Kurs', icon: IconCurrencyDollar },
   { path: '/settings/suppliers', label: 'Suppliers', icon: IconTruck },
 ]
 
@@ -137,13 +136,9 @@ const logout = async () => {
             <IconMenu2 class="w-6 h-6" :stroke-width="1.5" />
           </button>
           
-          <div class="flex items-center gap-4">
-            <!-- Exchange Rate Badge -->
-            <div class="badge badge-outline badge-lg gap-2">
-              <span class="text-xs">USD/IDR</span>
-              <span class="font-mono font-bold">15,500</span>
-            </div>
-          </div>
+        <div class="flex items-center gap-4">
+          <!-- Spacer or future elements -->
+        </div>
         </div>
       </header>
 

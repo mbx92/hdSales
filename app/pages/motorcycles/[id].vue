@@ -400,9 +400,8 @@ const deleteMotorcycle = async () => {
               </div>
               <div class="form-control">
                 <label class="label"><span class="label-text">Currency</span></label>
-                <select v-model="costForm.currency" class="select select-bordered bg-base-300">
+                <select v-model="costForm.currency" class="select select-bordered bg-base-300" disabled>
                   <option value="IDR">IDR</option>
-                  <option value="USD">USD</option>
                 </select>
               </div>
             </div>
@@ -442,9 +441,8 @@ const deleteMotorcycle = async () => {
               </div>
               <div class="form-control">
                 <label class="label"><span class="label-text">Currency</span></label>
-                <select v-model="sellForm.currency" class="select select-bordered bg-base-300">
+                <select v-model="sellForm.currency" class="select select-bordered bg-base-300" disabled>
                   <option value="IDR">IDR</option>
-                  <option value="USD">USD</option>
                 </select>
               </div>
             </div>

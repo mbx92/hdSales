@@ -190,7 +190,13 @@ const totalItems = computed(() => {
               <tr v-for="sale in data.data" :key="sale.id" class="hover">
                 <td>{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
                 <td>
-                  <span class="font-mono text-sm font-medium">{{ sale.invoiceNumber }}</span>
+                  <NuxtLink 
+                    :to="`/sales/sparepart-receipt/${sale.id}`" 
+                    class="font-mono text-sm font-medium text-primary hover:underline cursor-pointer"
+                    target="_blank"
+                  >
+                    {{ sale.invoiceNumber }}
+                  </NuxtLink>
                 </td>
                 <td>
                   <p class="font-medium">{{ sale.customerName || '-' }}</p>
