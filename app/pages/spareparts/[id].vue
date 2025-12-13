@@ -3,6 +3,7 @@ import { IconArrowLeft, IconPencil, IconTrash, IconHistory, IconPackage, IconAle
 
 const route = useRoute()
 const router = useRouter()
+const { showError } = useAlert()
 const id = route.params.id as string
 
 const { data: sparepart, pending, refresh } = await useFetch(`/api/spareparts/${id}`)
@@ -30,7 +31,7 @@ const handleUpdate = async () => {
     showEditModal.value = false
     refresh()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal update produk')
+    showError(e.data?.message || 'Gagal update produk')
   } finally {
     updateLoading.value = false
   }
@@ -43,7 +44,7 @@ const deleteItem = async () => {
     await $fetch(`/api/spareparts/${id}`, { method: 'DELETE' })
     router.push('/spareparts')
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menghapus produk')
+    showError(e.data?.message || 'Gagal menghapus produk')
   }
 }
 

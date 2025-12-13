@@ -1,23 +1,51 @@
 <script setup lang="ts">
-import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck } from '@tabler/icons-vue'
+import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics } from '@tabler/icons-vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const { alertState, closeAlert } = useAlert()
 
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: IconHome },
   { path: '/motorcycles', label: 'Motor', icon: IconMotorbike },
   { path: '/spareparts', label: 'Spareparts', icon: IconPackage },
   { path: '/sales', label: 'Penjualan', icon: IconCash },
+  { path: '/reports', label: 'Laporan', icon: IconReportAnalytics },
   { path: '/cashflow', label: 'Cash Flow', icon: IconChartBar },
   { path: '/settings/exchange-rates', label: 'Kurs', icon: IconCurrencyDollar },
   { path: '/settings/suppliers', label: 'Suppliers', icon: IconTruck },
 ]
 
 const sidebarOpen = ref(true)
+const isMobile = ref(false)
+
+// Check if mobile on mount and resize
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  
+  // Close sidebar by default on mobile
+  if (isMobile.value) {
+    sidebarOpen.value = false
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 1024 // lg breakpoint
+}
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
+}
+
+const closeSidebar = () => {
+  if (isMobile.value) {
+    sidebarOpen.value = false
+  }
 }
 
 const logout = async () => {
@@ -28,6 +56,13 @@ const logout = async () => {
 
 <template>
   <div class="min-h-screen bg-base-100">
+    <!-- Mobile Overlay -->
+    <div
+      v-if="isMobile && sidebarOpen"
+      @click="closeSidebar"
+      class="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300"
+    ></div>
+
     <!-- Sidebar -->
     <aside
       :class="[
@@ -54,8 +89,10 @@ const logout = async () => {
             v-for="item in menuItems"
             :key="item.path"
             :to="item.path"
+            @click="closeSidebar"
             :class="[
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200',
+              'flex items-center gap-3 py-3 rounded-lg transition-all duration-200',
+              sidebarOpen ? 'px-4 justify-start' : 'px-0 justify-center',
               route.path === item.path
                 ? 'bg-primary text-primary-content shadow-lg'
                 : 'text-base-content hover:bg-base-300'
@@ -115,5 +152,13 @@ const logout = async () => {
         <slot />
       </main>
     </div>
+    
+    <!-- Global Alert Modal -->
+    <AlertModal
+      v-model="alertState.show"
+      :title="alertState.title"
+      :message="alertState.message"
+      :type="alertState.type"
+    />
   </div>
 </template>

@@ -3,6 +3,7 @@ import { IconArrowLeft, IconChevronDown, IconCash, IconTrash, IconPlus, IconInfo
 
 const route = useRoute()
 const router = useRouter()
+const { showError } = useAlert()
 const id = route.params.id as string
 
 const { data: motorcycle, pending, refresh } = await useFetch(`/api/motorcycles/${id}`)
@@ -87,7 +88,7 @@ const addCost = async () => {
     }
     refresh()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menambah biaya')
+    showError(e.data?.message || 'Gagal menambah biaya')
   } finally {
     loading.value = false
   }
@@ -107,7 +108,7 @@ const sellMotorcycle = async () => {
     showSellModal.value = false
     refresh()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menjual motor')
+    showError(e.data?.message || 'Gagal menjual motor')
   } finally {
     loading.value = false
   }
@@ -122,7 +123,7 @@ const updateStatus = async (newStatus: string) => {
     })
     refresh()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal update status')
+    showError(e.data?.message || 'Gagal update status')
   } finally {
     loading.value = false
   }
@@ -136,7 +137,7 @@ const deleteMotorcycle = async () => {
     await $fetch(`/api/motorcycles/${id}`, { method: 'DELETE' })
     router.push('/motorcycles')
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menghapus motor')
+    showError(e.data?.message || 'Gagal menghapus motor')
   } finally {
     loading.value = false
   }
@@ -170,6 +171,13 @@ const deleteMotorcycle = async () => {
         </div>
 
         <div class="flex gap-2">
+          <NuxtLink
+            :to="`/motorcycles/edit-${motorcycle.id}`"
+            class="btn btn-outline"
+          >
+            Edit Motor
+          </NuxtLink>
+
           <div v-if="motorcycle.status === 'INSPECTION'" class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-outline">
               Update Status
@@ -190,7 +198,6 @@ const deleteMotorcycle = async () => {
           </button>
 
           <button
-            v-if="motorcycle.status !== 'SOLD'"
             @click="deleteMotorcycle"
             class="btn btn-outline btn-error"
             :disabled="loading"
@@ -293,7 +300,6 @@ const deleteMotorcycle = async () => {
               <span class="badge badge-primary">{{ motorcycle.costs?.length || 0 }}</span>
             </h2>
             <button
-              v-if="motorcycle.status !== 'SOLD'"
               @click="showCostModal = true"
               class="btn btn-primary btn-sm"
             >
@@ -370,121 +376,125 @@ const deleteMotorcycle = async () => {
     </template>
 
     <!-- Add Cost Modal -->
-    <dialog :class="['modal', showCostModal && 'modal-open']">
-      <div class="modal-box bg-base-200">
-        <h3 class="font-bold text-lg mb-4">Tambah Biaya</h3>
-        <form @submit.prevent="addCost" class="space-y-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">Kategori *</span></label>
-            <select v-model="costForm.component" class="select select-bordered bg-base-300" required>
-              <option v-for="c in costComponents" :key="c.value" :value="c.value">
-                {{ c.label }}
-              </option>
-            </select>
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Deskripsi *</span></label>
-            <input v-model="costForm.description" type="text" class="input input-bordered bg-base-300" required />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
+    <Teleport to="body">
+      <dialog :class="['modal', showCostModal && 'modal-open']">
+        <div class="modal-box bg-base-200">
+          <h3 class="font-bold text-lg mb-4">Tambah Biaya</h3>
+          <form @submit.prevent="addCost" class="space-y-4">
             <div class="form-control">
-              <label class="label"><span class="label-text">Jumlah *</span></label>
-              <input v-model="costForm.amount" type="number" step="0.01" class="input input-bordered bg-base-300" required />
-            </div>
-            <div class="form-control">
-              <label class="label"><span class="label-text">Currency</span></label>
-              <select v-model="costForm.currency" class="select select-bordered bg-base-300">
-                <option value="IDR">IDR</option>
-                <option value="USD">USD</option>
+              <label class="label"><span class="label-text">Kategori *</span></label>
+              <select v-model="costForm.component" class="select select-bordered bg-base-300" required>
+                <option v-for="c in costComponents" :key="c.value" :value="c.value">
+                  {{ c.label }}
+                </option>
               </select>
             </div>
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Metode Bayar</span></label>
-            <select v-model="costForm.paymentMethod" class="select select-bordered bg-base-300">
-              <option value="CASH">Cash</option>
-              <option value="TRANSFER">Transfer</option>
-              <option value="OTHER">Lainnya</option>
-            </select>
-          </div>
-          <div class="modal-action">
-            <button type="button" class="btn btn-ghost" @click="showCostModal = false">Batal</button>
-            <button type="submit" class="btn btn-primary" :disabled="loading">
-              <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-              Simpan
-            </button>
-          </div>
-        </form>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button @click="showCostModal = false">close</button>
-      </form>
-    </dialog>
-
-    <!-- Sell Modal -->
-    <dialog :class="['modal', showSellModal && 'modal-open']">
-      <div class="modal-box bg-base-200 max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">Jual Motor</h3>
-        <form @submit.prevent="sellMotorcycle" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
             <div class="form-control">
-              <label class="label"><span class="label-text">Harga Jual *</span></label>
-              <input v-model="sellForm.sellingPrice" type="number" step="0.01" class="input input-bordered bg-base-300" required />
+              <label class="label"><span class="label-text">Deskripsi *</span></label>
+              <input v-model="costForm.description" type="text" class="input input-bordered bg-base-300" required />
             </div>
-            <div class="form-control">
-              <label class="label"><span class="label-text">Currency</span></label>
-              <select v-model="sellForm.currency" class="select select-bordered bg-base-300">
-                <option value="IDR">IDR</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Nama Pembeli *</span></label>
-            <input v-model="sellForm.buyerName" type="text" class="input input-bordered bg-base-300" required />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">No. Telepon</span></label>
-              <input v-model="sellForm.buyerPhone" type="tel" class="input input-bordered bg-base-300" />
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-control">
+                <label class="label"><span class="label-text">Jumlah *</span></label>
+                <input v-model="costForm.amount" type="number" step="0.01" class="input input-bordered bg-base-300" required />
+              </div>
+              <div class="form-control">
+                <label class="label"><span class="label-text">Currency</span></label>
+                <select v-model="costForm.currency" class="select select-bordered bg-base-300">
+                  <option value="IDR">IDR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
             </div>
             <div class="form-control">
               <label class="label"><span class="label-text">Metode Bayar</span></label>
-              <select v-model="sellForm.paymentMethod" class="select select-bordered bg-base-300">
+              <select v-model="costForm.paymentMethod" class="select select-bordered bg-base-300">
                 <option value="CASH">Cash</option>
                 <option value="TRANSFER">Transfer</option>
-                <option value="INSTALLMENT">Cicilan</option>
+                <option value="OTHER">Lainnya</option>
               </select>
             </div>
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Alamat</span></label>
-            <textarea v-model="sellForm.buyerAddress" class="textarea textarea-bordered bg-base-300"></textarea>
-          </div>
-          <div class="alert alert-info">
-            <IconInfoCircle class="w-6 h-6 shrink-0" :stroke-width="1.5" />
-            <div>
-              <p>HPP Motor: <strong>{{ formatCurrency(motorcycle?.totalCost || 0, motorcycle?.currency) }}</strong></p>
-              <p v-if="sellForm.sellingPrice">
-                Estimasi Profit: 
-                <strong :class="parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0) >= 0 ? 'text-success' : 'text-error'">
-                  {{ formatCurrency(parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0), sellForm.currency) }}
-                </strong>
-              </p>
+            <div class="modal-action">
+              <button type="button" class="btn btn-ghost" @click="showCostModal = false">Batal</button>
+              <button type="submit" class="btn btn-primary" :disabled="loading">
+                <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+                Simpan
+              </button>
             </div>
-          </div>
-          <div class="modal-action">
-            <button type="button" class="btn btn-ghost" @click="showSellModal = false">Batal</button>
-            <button type="submit" class="btn btn-success" :disabled="loading">
-              <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-              Konfirmasi Penjualan
-            </button>
-          </div>
+          </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button @click="showCostModal = false">close</button>
         </form>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button @click="showSellModal = false">close</button>
-      </form>
-    </dialog>
+      </dialog>
+    </Teleport>
+
+    <!-- Sell Modal -->
+    <Teleport to="body">
+      <dialog :class="['modal', showSellModal && 'modal-open']">
+        <div class="modal-box bg-base-200 max-w-2xl">
+          <h3 class="font-bold text-lg mb-4">Jual Motor</h3>
+          <form @submit.prevent="sellMotorcycle" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-control">
+                <label class="label"><span class="label-text">Harga Jual *</span></label>
+                <input v-model="sellForm.sellingPrice" type="number" step="0.01" class="input input-bordered bg-base-300" required />
+              </div>
+              <div class="form-control">
+                <label class="label"><span class="label-text">Currency</span></label>
+                <select v-model="sellForm.currency" class="select select-bordered bg-base-300">
+                  <option value="IDR">IDR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Nama Pembeli *</span></label>
+              <input v-model="sellForm.buyerName" type="text" class="input input-bordered bg-base-300" required />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-control">
+                <label class="label"><span class="label-text">No. Telepon</span></label>
+                <input v-model="sellForm.buyerPhone" type="tel" class="input input-bordered bg-base-300" />
+              </div>
+              <div class="form-control">
+                <label class="label"><span class="label-text">Metode Bayar</span></label>
+                <select v-model="sellForm.paymentMethod" class="select select-bordered bg-base-300">
+                  <option value="CASH">Cash</option>
+                  <option value="TRANSFER">Transfer</option>
+                  <option value="INSTALLMENT">Cicilan</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Alamat</span></label>
+              <textarea v-model="sellForm.buyerAddress" class="textarea textarea-bordered bg-base-300"></textarea>
+            </div>
+            <div class="alert alert-info">
+              <IconInfoCircle class="w-6 h-6 shrink-0" :stroke-width="1.5" />
+              <div>
+                <p>HPP Motor: <strong>{{ formatCurrency(motorcycle?.totalCost || 0, motorcycle?.currency) }}</strong></p>
+                <p v-if="sellForm.sellingPrice">
+                  Estimasi Profit: 
+                  <strong :class="parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0) >= 0 ? 'text-success' : 'text-error'">
+                    {{ formatCurrency(parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0), sellForm.currency) }}
+                  </strong>
+                </p>
+              </div>
+            </div>
+            <div class="modal-action">
+              <button type="button" class="btn btn-ghost" @click="showSellModal = false">Batal</button>
+              <button type="submit" class="btn btn-success" :disabled="loading">
+                <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+                Konfirmasi Penjualan
+              </button>
+            </div>
+          </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button @click="showSellModal = false">close</button>
+        </form>
+      </dialog>
+    </Teleport>
   </div>
 </template>

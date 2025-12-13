@@ -30,13 +30,6 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (motorcycle.status === 'SOLD') {
-        throw createError({
-            statusCode: 400,
-            message: 'Tidak bisa menambah biaya untuk motor yang sudah terjual',
-        })
-    }
-
     // Convert to IDR
     const { amountIdr, exchangeRate } = await convertToIdr(parseFloat(body.amount), body.currency)
 

@@ -2,6 +2,7 @@
 import { IconArrowLeft, IconInfoCircle } from '@tabler/icons-vue'
 
 const router = useRouter()
+const { showError } = useAlert()
 
 // Fetch suppliers for dropdown
 const { data: suppliers } = await useFetch('/api/suppliers')
@@ -38,7 +39,7 @@ const handleSubmit = async () => {
     })
     router.push('/spareparts')
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menambahkan produk')
+    showError(e.data?.message || 'Gagal menambahkan produk')
   } finally {
     loading.value = false
   }

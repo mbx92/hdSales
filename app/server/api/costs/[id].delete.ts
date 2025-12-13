@@ -23,13 +23,6 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (cost.motorcycle?.status === 'SOLD') {
-        throw createError({
-            statusCode: 400,
-            message: 'Tidak bisa menghapus biaya untuk motor yang sudah terjual',
-        })
-    }
-
     // Delete the cost
     await prisma.cost.delete({
         where: { id },

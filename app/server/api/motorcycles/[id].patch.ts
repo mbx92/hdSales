@@ -22,14 +22,6 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Prevent editing if sold
-    if (existingMotorcycle.status === 'SOLD' && body.status !== 'SOLD') {
-        throw createError({
-            statusCode: 400,
-            message: 'Motor yang sudah terjual tidak bisa diubah statusnya',
-        })
-    }
-
     const motorcycle = await prisma.motorcycle.update({
         where: { id },
         data: {

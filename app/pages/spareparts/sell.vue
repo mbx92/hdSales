@@ -2,6 +2,7 @@
 import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft } from '@tabler/icons-vue'
 
 const router = useRouter()
+const { showError, showWarning } = useAlert()
 const { data: products } = await useFetch('/api/spareparts', {
   query: { status: 'ACTIVE' }
 })
@@ -26,11 +27,11 @@ const filteredProducts = computed(() => {
 })
 
 const addToCart = (product: any) => {
-  if (product.stock <= 0) return alert('Stok habis!')
+  if (product.stock <= 0) return showWarning('Stok habis!')
   
   const existing = cart.value.find(item => item.id === product.id)
   if (existing) {
-    if (existing.quantity >= product.stock) return alert('Stok tidak cukup!')
+    if (existing.quantity >= product.stock) return showWarning('Stok tidak cukup!')
     existing.quantity++
   } else {
     cart.value.push({
@@ -59,7 +60,7 @@ const total = computed(() => {
 
 const processSale = async () => {
   if (cart.value.length === 0) return
-  if (!customerName.value) return alert('Nama pembeli wajib diisi')
+  if (!customerName.value) return showWarning('Nama pembeli wajib diisi')
   
   loading.value = true
   try {
@@ -87,7 +88,7 @@ const processSale = async () => {
     customerPhone.value = ''
     discount.value = 0
   } catch (e: any) {
-    alert(e.data?.message || 'Transaksi gagal')
+    showError(e.data?.message || 'Transaksi gagal')
   } finally {
     loading.value = false
   }
@@ -139,6 +140,43 @@ const formatCurrency = (value: number) => {
                   </a>
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Carousel -->
+      <div class="card bg-base-200 border border-base-300 flex-shrink-0">
+        <div class="card-body p-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-sm flex items-center gap-2">
+              <IconPackage class="w-4 h-4" /> Produk Tersedia
+            </span>
+            <span class="text-xs opacity-60">Klik untuk tambah ke keranjang</span>
+          </div>
+          <div class="carousel carousel-center gap-3 w-full py-2">
+            <div 
+              v-for="product in products?.filter((p: any) => p.stock > 0).slice(0, 12)" 
+              :key="product.id" 
+              class="carousel-item"
+            >
+              <button 
+                @click="addToCart(product)" 
+                class="card bg-base-100 border border-base-300 w-32 hover:border-primary hover:shadow-lg transition-all cursor-pointer"
+                :class="{ 'opacity-50': product.stock <= 0 }"
+                :disabled="product.stock <= 0"
+              >
+                <div class="card-body p-3 items-center text-center">
+                  <div class="avatar placeholder mb-1">
+                    <div class="bg-primary/10 text-primary rounded w-10 h-10">
+                      <span class="text-xs font-bold">{{ product.sku.slice(-3) }}</span>
+                    </div>
+                  </div>
+                  <p class="text-xs font-semibold line-clamp-2 min-h-[2rem]">{{ product.name }}</p>
+                  <p class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice) }}</p>
+                  <p class="text-xs opacity-60">Stok: {{ product.stock }}</p>
+                </div>
+              </button>
             </div>
           </div>
         </div>

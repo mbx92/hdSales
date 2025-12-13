@@ -14,6 +14,7 @@ interface ExchangeRate {
 
 const { data: rates, pending, refresh } = await useFetch<ExchangeRate[]>('/api/exchange-rates')
 const { data: latestRate } = await useFetch<ExchangeRate>('/api/exchange-rates/latest')
+const { showError } = useAlert()
 
 const showModal = ref(false)
 const loading = ref(false)
@@ -35,7 +36,7 @@ const handleSubmit = async () => {
     form.value.rate = ''
     refresh()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menyimpan kurs')
+    showError(e.data?.message || 'Gagal menyimpan kurs')
   } finally {
     loading.value = false
   }

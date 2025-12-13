@@ -24,13 +24,6 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (existingCost.motorcycle?.status === 'SOLD') {
-        throw createError({
-            statusCode: 400,
-            message: 'Tidak bisa mengubah biaya untuk motor yang sudah terjual',
-        })
-    }
-
     // Recalculate if amount or currency changed
     let amountIdr = existingCost.amountIdr
     let exchangeRate = existingCost.exchangeRate

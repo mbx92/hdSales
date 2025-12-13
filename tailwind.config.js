@@ -46,18 +46,18 @@ export default {
         themes: [
             {
                 hdsales: {
-                    'primary': '#f97316',
+                    'primary': '#3b82f6',        // Blue
                     'primary-content': '#ffffff',
-                    'secondary': '#eab308',
-                    'secondary-content': '#000000',
-                    'accent': '#3b82f6',
-                    'accent-content': '#ffffff',
-                    'neutral': '#1f2937',
-                    'neutral-content': '#d1d5db',
-                    'base-100': '#111827',
-                    'base-200': '#1f2937',
-                    'base-300': '#374151',
-                    'base-content': '#f3f4f6',
+                    'secondary': '#f97316',      // Orange
+                    'secondary-content': '#ffffff',
+                    'accent': '#eab308',         // Gold
+                    'accent-content': '#000000',
+                    'neutral': '#374151',        // Gray
+                    'neutral-content': '#ffffff',
+                    'base-100': '#ffffff',       // White background
+                    'base-200': '#f3f4f6',       // Light gray
+                    'base-300': '#e5e7eb',       // Medium gray
+                    'base-content': '#111827',   // Dark text
                     'info': '#0ea5e9',
                     'info-content': '#ffffff',
                     'success': '#22c55e',
@@ -68,9 +68,9 @@ export default {
                     'error-content': '#ffffff',
                 },
             },
-            'dark',
-            'business',
+            'light',
+            'cupcake',
         ],
-        darkTheme: 'hdsales',
+        darkTheme: false,
     },
 }

@@ -11,6 +11,8 @@ interface Supplier {
   _count?: { spareparts: number }
 }
 
+const { showError } = useAlert()
+
 const search = ref('')
 const debouncedSearch = refDebounced(search, 300)
 
@@ -71,7 +73,7 @@ const handleSubmit = async () => {
     refresh()
     resetForm()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menyimpan supplier')
+    showError(e.data?.message || 'Gagal menyimpan supplier')
   } finally {
     loading.value = false
   }
@@ -85,7 +87,7 @@ const deleteSupplier = async (id: string, name: string) => {
     await $fetch(`/api/suppliers/${id}`, { method: 'DELETE' })
     refresh()
   } catch (e: any) {
-    alert(e.data?.message || 'Gagal menghapus supplier')
+    showError(e.data?.message || 'Gagal menghapus supplier')
   } finally {
     loading.value = false
   }
