@@ -14,6 +14,9 @@ if (error.value || !sale.value) {
   })
 }
 
+// Non-null sale data (after error check above)
+const saleData = computed(() => sale.value!)
+
 const exportingPDF = ref(false)
 
 const formatCurrency = (value: number) => {
@@ -42,7 +45,40 @@ const handleExportPDF = async () => {
     
     const s = sale.value as any
     const pageWidth = 80
+    const pageHeight = 200
     let y = 10
+    
+    // Add watermark logo (40% transparent)
+    try {
+      const logoResponse = await fetch('/logo.png')
+      if (logoResponse.ok) {
+        const logoBlob = await logoResponse.blob()
+        const reader = new FileReader()
+        const logoDataUrl = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(logoBlob)
+        })
+        
+        const img = new Image()
+        img.src = logoDataUrl
+        await new Promise((resolve) => { img.onload = resolve })
+        
+        // Draw watermark in center
+        const wmMaxWidth = 50
+        const wmMaxHeight = 50
+        const wmRatio = Math.min(wmMaxWidth / img.width, wmMaxHeight / img.height)
+        const wmWidth = img.width * wmRatio
+        const wmHeight = img.height * wmRatio
+        
+        const gState = doc.GState({ opacity: 0.4 })
+        doc.setGState(gState)
+        doc.addImage(logoDataUrl, 'PNG', (pageWidth - wmWidth) / 2, (pageHeight - wmHeight) / 2 - 20, wmWidth, wmHeight)
+        const resetState = doc.GState({ opacity: 1 })
+        doc.setGState(resetState)
+      }
+    } catch (e) {
+      console.log('Watermark error:', e)
+    }
     
     // Store name
     doc.setFontSize(14)
@@ -50,9 +86,11 @@ const handleExportPDF = async () => {
     doc.text('DIGARASI', pageWidth / 2, y, { align: 'center' })
     y += 5
     
-    doc.setFontSize(8)
+    doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
-    doc.text('Harley Davidson Sales', pageWidth / 2, y, { align: 'center' })
+    doc.text('Jl. Sunset Road no 39A, seminyak, Badung. Bali', pageWidth / 2, y, { align: 'center' })
+    y += 3
+    doc.text('08113859009', pageWidth / 2, y, { align: 'center' })
     y += 8
     
     // Line separator
@@ -160,14 +198,25 @@ const handleExportPDF = async () => {
     </div>
 
     <!-- Receipt Card -->
-    <div class="max-w-2xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none">
+    <div class="max-w-2xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none relative">
+      <!-- Watermark -->
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <img 
+          src="/logo.png" 
+          alt="" 
+          class="w-48 h-48 object-contain" 
+          style="opacity: 0.4;" 
+          onerror="this.style.display='none'" 
+        />
+      </div>
       <!-- Header -->
       <div class="bg-gradient-to-r from-primary to-secondary text-primary-content p-6 text-center">
         <div class="flex items-center justify-center gap-2 mb-2">
           <IconReceipt class="w-8 h-8" />
           <h1 class="text-2xl font-bold">DIGARASI</h1>
         </div>
-        <p class="text-sm opacity-80">Harley Davidson Sales</p>
+        <p class="text-xs opacity-80">Jl. Sunset Road no 39A, seminyak, Badung. Bali</p>
+        <p class="text-xs opacity-80">08113859009</p>
       </div>
 
       <!-- Invoice Info -->
@@ -175,11 +224,11 @@ const handleExportPDF = async () => {
         <div class="grid grid-cols-2 gap-4">
           <div>
             <p class="text-xs text-base-content/60">Nomor Invoice</p>
-            <p class="font-mono font-bold text-lg">{{ sale.invoiceNumber }}</p>
+            <p class="font-mono font-bold text-lg">{{ saleData.invoiceNumber }}</p>
           </div>
           <div class="text-right">
             <p class="text-xs text-base-content/60">Tanggal</p>
-            <p class="font-medium">{{ formatDate(sale.saleDate) }}</p>
+            <p class="font-medium">{{ formatDate(saleData.saleDate) }}</p>
           </div>
         </div>
       </div>
@@ -187,8 +236,8 @@ const handleExportPDF = async () => {
       <!-- Customer Info -->
       <div class="p-6 bg-base-100 border-b border-base-200">
         <p class="text-xs text-base-content/60 mb-1">Customer</p>
-        <p class="font-bold">{{ sale.customerName || 'Walk-in Customer' }}</p>
-        <p v-if="sale.customerPhone" class="text-sm text-base-content/60">{{ sale.customerPhone }}</p>
+        <p class="font-bold">{{ saleData.customerName || 'Walk-in Customer' }}</p>
+        <p v-if="saleData.customerPhone" class="text-sm text-base-content/60">{{ saleData.customerPhone }}</p>
       </div>
 
       <!-- Items -->
@@ -196,7 +245,7 @@ const handleExportPDF = async () => {
         <h3 class="font-bold mb-4 text-sm text-base-content/60 uppercase tracking-wide">Detail Pembelian</h3>
         <div class="space-y-3">
           <div 
-            v-for="item in sale.items" 
+            v-for="item in saleData.items" 
             :key="item.id" 
             class="flex justify-between items-start p-3 bg-base-100 rounded-lg border border-base-200"
           >
@@ -216,20 +265,20 @@ const handleExportPDF = async () => {
         <div class="space-y-2">
           <div class="flex justify-between text-sm">
             <span>Subtotal</span>
-            <span class="font-mono">{{ formatCurrency(sale.subtotal) }}</span>
+            <span class="font-mono">{{ formatCurrency(saleData.subtotal) }}</span>
           </div>
-          <div v-if="sale.discount > 0" class="flex justify-between text-sm text-error">
+          <div v-if="saleData.discount > 0" class="flex justify-between text-sm text-error">
             <span>Diskon</span>
-            <span class="font-mono">-{{ formatCurrency(sale.discount) }}</span>
+            <span class="font-mono">-{{ formatCurrency(saleData.discount) }}</span>
           </div>
           <div class="divider my-2"></div>
           <div class="flex justify-between text-xl font-bold">
             <span>Total</span>
-            <span class="text-primary font-mono">{{ formatCurrency(sale.total) }}</span>
+            <span class="text-primary font-mono">{{ formatCurrency(saleData.total) }}</span>
           </div>
           <div class="flex justify-between text-sm text-base-content/60 mt-2">
             <span>Metode Pembayaran</span>
-            <span class="badge badge-outline">{{ sale.paymentMethod }}</span>
+            <span class="badge badge-outline">{{ saleData.paymentMethod }}</span>
           </div>
         </div>
       </div>

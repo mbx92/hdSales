@@ -14,6 +14,9 @@ if (error.value || !sale.value) {
   })
 }
 
+// Non-null sale data (after error check above)
+const saleData = computed(() => sale.value!)
+
 const formatCurrency = (value: number, currency: string = 'IDR') => {
   if (currency === 'IDR') {
     return new Intl.NumberFormat('id-ID', {
@@ -75,13 +78,17 @@ const handleExportPDF = async () => {
       doc.roundedRect(20, currentY, pageWidth - 40, height, 2, 2, 'F')
     }
 
-    // Load logo (if exists) with aspect ratio preservation
+    // Load logo and create watermark/blue versions using canvas
+    let logoDataUrl: string | null = null
+    let watermarkDataUrl: string | null = null
+    let blueLogoDataUrl: string | null = null
+    
     try {
       const logoResponse = await fetch('/logo.png')
       if (logoResponse.ok) {
         const logoBlob = await logoResponse.blob()
         const reader = new FileReader()
-        const logoDataUrl = await new Promise<string>((resolve) => {
+        logoDataUrl = await new Promise<string>((resolve) => {
           reader.onloadend = () => resolve(reader.result as string)
           reader.readAsDataURL(logoBlob)
         })
@@ -90,12 +97,51 @@ const handleExportPDF = async () => {
         img.src = logoDataUrl
         await new Promise((resolve) => { img.onload = resolve })
         
-        const maxWidth = 40 // Smaller logo
+        // Create watermark with 50% opacity using canvas
+        const wmCanvas = document.createElement('canvas')
+        wmCanvas.width = img.width
+        wmCanvas.height = img.height
+        const wmCtx = wmCanvas.getContext('2d')!
+        wmCtx.globalAlpha = 0.3
+        wmCtx.drawImage(img, 0, 0)
+        watermarkDataUrl = wmCanvas.toDataURL('image/png')
+        
+        // Create blue-tinted logo with low opacity for stamp
+        const blueCanvas = document.createElement('canvas')
+        blueCanvas.width = img.width
+        blueCanvas.height = img.height
+        const blueCtx = blueCanvas.getContext('2d')!
+        // Draw original image
+        blueCtx.drawImage(img, 0, 0)
+        // Apply blue overlay with multiply blend
+        blueCtx.globalCompositeOperation = 'source-atop'
+        blueCtx.globalAlpha = 0.7
+        blueCtx.fillStyle = '#2563eb' // Blue color
+        blueCtx.fillRect(0, 0, img.width, img.height)
+        // Make it semi-transparent
+        const finalBlueCanvas = document.createElement('canvas')
+        finalBlueCanvas.width = img.width
+        finalBlueCanvas.height = img.height
+        const finalBlueCtx = finalBlueCanvas.getContext('2d')!
+        finalBlueCtx.globalAlpha = 0.25 // Low opacity
+        finalBlueCtx.drawImage(blueCanvas, 0, 0)
+        blueLogoDataUrl = finalBlueCanvas.toDataURL('image/png')
+        
+        // Draw watermark FIRST - full page size with 50% opacity
+        const pageMargin = 20
+        const availableWidth = pageWidth - (pageMargin * 2)
+        const availableHeight = pageHeight - (pageMargin * 2)
+        const wmRatio = Math.min(availableWidth / img.width, availableHeight / img.height)
+        const wmW = img.width * wmRatio
+        const wmH = img.height * wmRatio
+        doc.addImage(watermarkDataUrl, 'PNG', (pageWidth - wmW) / 2, (pageHeight - wmH) / 2, wmW, wmH)
+        
+        // Then draw header logo
+        const maxWidth = 40
         const maxHeight = 20
         const ratio = Math.min(maxWidth / img.width, maxHeight / img.height)
         const width = img.width * ratio
         const height = img.height * ratio
-        
         doc.addImage(logoDataUrl, 'PNG', (pageWidth - width) / 2, currentY, width, height)
         currentY += height + 3
       } else {
@@ -117,11 +163,11 @@ const handleExportPDF = async () => {
     doc.setTextColor(100, 100, 100)
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text('Digarasi - Premium Motorcycles', pageWidth / 2, currentY, { align: 'center' })
+    doc.text('Jl. Sunset Road no 39A, seminyak, Badung. Bali', pageWidth / 2, currentY, { align: 'center' })
     
     currentY += 5
     doc.setFontSize(9)
-    doc.text('Penjualan Motor Premium', pageWidth / 2, currentY, { align: 'center' })
+    doc.text('08113859009', pageWidth / 2, currentY, { align: 'center' })
     
     // Line separator
     currentY += 5
@@ -146,7 +192,7 @@ const handleExportPDF = async () => {
     const cardPadding = 5
     const contentLeft = 25
     
-    drawSectionBox(28, [249, 250, 251]) // Shorter
+    // No background card - just content
     currentY += cardPadding
     
     doc.setFontSize(10)
@@ -175,13 +221,11 @@ const handleExportPDF = async () => {
     
     currentY += cardPadding + 5
     
-    // Motorcycle Info Section - matching HTML preview
+    // Motorcycle Info Section
     currentY += 5
     const col2 = pageWidth / 2 + 5 // Column 2 starts at center + offset
     
-    // Calculate card height based on content (4 rows of label+value + title + equal padding)
-    const motorCardHeight = 65 // Extra height for bottom padding matching top
-    drawSectionBox(motorCardHeight, [239, 246, 255]) // Blue-50
+    // No background card - just content
     currentY += cardPadding + 2
     
     doc.setFontSize(10)
@@ -298,25 +342,41 @@ const handleExportPDF = async () => {
       currentY += 12
     }
     
-    // Signature Section - compact
+    // Signature Section - compact (only seller with stamp on right)
     currentY += 5
     
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     doc.setTextColor(100, 100, 100)
-    doc.text('Penjual', 55, currentY, { align: 'center' })
-    doc.text('Pembeli', pageWidth - 55, currentY, { align: 'center' })
+    doc.text('Penjual', pageWidth / 2, currentY, { align: 'center' })
     
-    currentY += 15 // Reduced signature space
+    // Draw blue company stamp using logo - positioned at right end of line
+    if (blueLogoDataUrl) {
+      const stampMaxWidth = 35
+      const stampMaxHeight = 35
+      // Use original img dimensions for ratio calculation
+      const logoImg = new Image()
+      logoImg.src = logoDataUrl!
+      await new Promise((resolve) => { logoImg.onload = resolve })
+      const stampRatio = Math.min(stampMaxWidth / logoImg.width, stampMaxHeight / logoImg.height)
+      const stampWidth = logoImg.width * stampRatio
+      const stampHeight = logoImg.height * stampRatio
+      // Position stamp at right end of signature line
+      const signatureLineEnd = pageWidth / 2 + 30
+      doc.addImage(blueLogoDataUrl, 'PNG', signatureLineEnd - (stampWidth / 2), currentY + 2, stampWidth, stampHeight)
+    }
+    
+    // Reset text color
+    doc.setTextColor(30, 30, 30)
+    
+    currentY += 25
     doc.setDrawColor(150, 150, 150)
-    doc.line(30, currentY, 80, currentY)
-    doc.line(pageWidth - 80, currentY, pageWidth - 30, currentY)
+    doc.line(pageWidth / 2 - 30, currentY, pageWidth / 2 + 30, currentY)
     
     currentY += 4
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
-    doc.text('Digarasi', 55, currentY, { align: 'center' })
-    doc.text(s.buyerName, pageWidth - 55, currentY, { align: 'center' })
+    doc.text('Digarasi', pageWidth / 2, currentY, { align: 'center' })
     
     // Footer - fixed at bottom
     doc.setFontSize(7)
@@ -354,78 +414,88 @@ const handleExportPDF = async () => {
     </div>
 
     <!-- Receipt Container -->
-    <div class="max-w-4xl mx-auto bg-white shadow-lg print:shadow-none">
-      <div class="p-12 print:p-8">
+    <div class="max-w-4xl mx-auto bg-white shadow-lg print:shadow-none relative">
+      <!-- Watermark -->
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-5">
+        <img 
+          src="/logo.png" 
+          alt="" 
+          class="w-full h-full object-contain" 
+          style="opacity: 0.3;" 
+          onerror="this.style.display='none'" 
+        />
+      </div>
+      <div class="p-12 print:p-8 relative z-10">
         <!-- Header -->
         <div class="text-center mb-8 pb-6 border-b-2 border-gray-300">
           <img src="/logo.png" alt="Logo" class="mx-auto mb-4 h-20 w-auto" onerror="this.style.display='none'" />
           <h1 class="text-3xl font-bold text-gray-800 mb-2">KWITANSI PEMBAYARAN</h1>
-          <p class="text-lg text-gray-600">Digarasi - Premium Motorcycles</p>
-          <p class="text-sm text-gray-500 mt-1">Penjualan Motor Premium</p>
+          <p class="text-lg text-gray-600">Jl. Sunset Road no 39A, seminyak, Badung. Bali</p>
+          <p class="text-sm text-gray-500 mt-1">08113859009</p>
         </div>
 
         <!-- Receipt Number & Date -->
         <div class="grid grid-cols-2 gap-6 mb-8">
           <div>
             <p class="text-sm text-gray-600">No. Transaksi</p>
-            <p class="text-lg font-mono font-bold text-gray-800">{{ sale.id }}</p>
+            <p class="text-lg font-mono font-bold text-gray-800">{{ saleData.id }}</p>
           </div>
           <div class="text-right">
             <p class="text-sm text-gray-600">Tanggal Penjualan</p>
-            <p class="text-lg font-semibold text-gray-800">{{ formatDate(sale.saleDate) }}</p>
+            <p class="text-lg font-semibold text-gray-800">{{ formatDate(saleData.saleDate) }}</p>
           </div>
         </div>
 
         <!-- Buyer Information -->
-        <div class="mb-8 p-6 bg-gray-50 rounded-lg">
+        <div class="mb-8 p-6 rounded-lg">
           <h2 class="text-lg font-bold text-gray-800 mb-4">Informasi Pembeli</h2>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <p class="text-sm text-gray-600">Nama Pembeli</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.buyerName }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.buyerName }}</p>
             </div>
             <div>
               <p class="text-sm text-gray-600">No. Telepon</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.buyerPhone || '-' }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.buyerPhone || '-' }}</p>
             </div>
             <div class="col-span-2">
               <p class="text-sm text-gray-600">Alamat</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.buyerAddress || '-' }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.buyerAddress || '-' }}</p>
             </div>
           </div>
         </div>
 
         <!-- Motorcycle Information -->
-        <div class="mb-8 p-6 bg-blue-50 rounded-lg">
+        <div class="mb-8 p-6 rounded-lg">
           <h2 class="text-lg font-bold text-gray-800 mb-4">Detail Motor</h2>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <p class="text-sm text-gray-600">Merek</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.motorcycle?.brand }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.motorcycle?.brand }}</p>
             </div>
             <div>
               <p class="text-sm text-gray-600">Model</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.motorcycle?.model }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.motorcycle?.model }}</p>
             </div>
             <div>
               <p class="text-sm text-gray-600">Tahun</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.motorcycle?.year }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.motorcycle?.year }}</p>
             </div>
             <div>
               <p class="text-sm text-gray-600">Warna</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.motorcycle?.color || '-' }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.motorcycle?.color || '-' }}</p>
             </div>
             <div class="col-span-2">
               <p class="text-sm text-gray-600">VIN</p>
-              <p class="text-base font-mono font-semibold text-gray-800">{{ sale.motorcycle?.vin }}</p>
+              <p class="text-base font-mono font-semibold text-gray-800">{{ saleData.motorcycle?.vin }}</p>
             </div>
-            <div v-if="sale.motorcycle?.mileage">
+            <div v-if="saleData.motorcycle?.mileage">
               <p class="text-sm text-gray-600">Kilometer</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.motorcycle.mileage.toLocaleString('id-ID') }} km</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.motorcycle?.mileage?.toLocaleString?.('id-ID') || saleData.motorcycle?.mileage }} km</p>
             </div>
             <div>
               <p class="text-sm text-gray-600">Kondisi</p>
-              <p class="text-base font-semibold text-gray-800">{{ sale.motorcycle?.condition }}</p>
+              <p class="text-base font-semibold text-gray-800">{{ saleData.motorcycle?.condition }}</p>
             </div>
           </div>
         </div>
@@ -436,19 +506,19 @@ const handleExportPDF = async () => {
           <div class="space-y-3">
             <div class="flex justify-between items-center py-2 border-b border-gray-200">
               <span class="text-gray-600">Harga Jual</span>
-              <span class="text-xl font-bold text-gray-800">{{ formatCurrency(sale.sellingPrice, sale.currency) }}</span>
+              <span class="text-xl font-bold text-gray-800">{{ formatCurrency(saleData.sellingPrice, saleData.currency) }}</span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-gray-200">
               <span class="text-gray-600">Metode Pembayaran</span>
-              <span class="font-semibold text-gray-800">{{ sale.paymentMethod }}</span>
+              <span class="font-semibold text-gray-800">{{ saleData.paymentMethod }}</span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-gray-200">
               <span class="text-gray-600">Jumlah Dibayar</span>
-              <span class="text-lg font-semibold text-green-600">{{ formatCurrency(sale.paidAmount, sale.currency) }}</span>
+              <span class="text-lg font-semibold text-green-600">{{ formatCurrency(saleData.paidAmount, saleData.currency) }}</span>
             </div>
-            <div v-if="sale.remainingAmount > 0" class="flex justify-between items-center py-2 border-b border-gray-200">
+            <div v-if="saleData.remainingAmount > 0" class="flex justify-between items-center py-2 border-b border-gray-200">
               <span class="text-gray-600">Sisa Pembayaran</span>
-              <span class="text-lg font-semibold text-orange-600">{{ formatCurrency(sale.remainingAmount, sale.currency) }}</span>
+              <span class="text-lg font-semibold text-orange-600">{{ formatCurrency(saleData.remainingAmount, saleData.currency) }}</span>
             </div>
           </div>
         </div>
@@ -457,31 +527,37 @@ const handleExportPDF = async () => {
         <div class="mb-8 p-6 bg-blue-600 text-white rounded-lg">
           <div class="flex justify-between items-center">
             <span class="text-xl font-bold">TOTAL PEMBAYARAN</span>
-            <span class="text-3xl font-bold">{{ formatCurrency(sale.sellingPrice, sale.currency) }}</span>
+            <span class="text-3xl font-bold">{{ formatCurrency(saleData.sellingPrice, saleData.currency) }}</span>
           </div>
-          <div v-if="sale.currency === 'USD'" class="text-right mt-2 text-blue-100">
-            <span class="text-sm">≈ {{ formatCurrency(sale.sellingPriceIdr, 'IDR') }}</span>
+          <div v-if="saleData.currency === 'USD'" class="text-right mt-2 text-blue-100">
+            <span class="text-sm">≈ {{ formatCurrency(saleData.sellingPriceIdr, 'IDR') }}</span>
           </div>
         </div>
 
         <!-- Notes -->
-        <div v-if="sale.notes" class="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+        <div v-if="saleData.notes" class="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
           <p class="text-sm text-gray-600 mb-1">Catatan:</p>
-          <p class="text-base text-gray-800">{{ sale.notes }}</p>
+          <p class="text-base text-gray-800">{{ saleData.notes }}</p>
         </div>
 
         <!-- Signature Section -->
-        <div class="grid grid-cols-2 gap-12 mt-12 pt-8 border-t-2 border-gray-300">
-          <div class="text-center">
-            <p class="text-gray-600 mb-16">Penjual</p>
-            <div class="border-t-2 border-gray-400 pt-2">
-              <p class="font-semibold text-gray-800">HD Sales</p>
+        <div class="flex justify-center mt-12 pt-8 border-t-2 border-gray-300">
+          <div class="text-center relative w-60">
+            <p class="text-gray-600 mb-4">Penjual</p>
+            <!-- Blue logo stamp - positioned on the right -->
+            <div class="absolute right-0 top-8 h-20 flex items-center justify-center">
+              <img 
+                src="/logo.png" 
+                alt="Stamp" 
+                class="h-16 w-auto" 
+                style="opacity: 0.25; filter: sepia(100%) saturate(300%) brightness(70%) hue-rotate(180deg);" 
+                onerror="this.style.display='none'" 
+              />
             </div>
-          </div>
-          <div class="text-center">
-            <p class="text-gray-600 mb-16">Pembeli</p>
-            <div class="border-t-2 border-gray-400 pt-2">
-              <p class="font-semibold text-gray-800">{{ sale.buyerName }}</p>
+            <div class="h-20"></div>
+            <div class="border-t-2 border-gray-400 pt-2 w-40 mx-auto">
+              <p class="font-semibold text-gray-800">ADI MAS SUDARMA</p>
+              <p class="font-semibold text-gray-800">DIGARASI</p>
             </div>
           </div>
         </div>

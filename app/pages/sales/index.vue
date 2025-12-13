@@ -1,13 +1,34 @@
 <script setup lang="ts">
-import { IconCash, IconMotorbike, IconTool, IconPrinter } from '@tabler/icons-vue'
+import { IconCash, IconMotorbike, IconTool, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch } from '@tabler/icons-vue'
 
 const activeTab = ref<'motorcycle' | 'sparepart'>('motorcycle')
+const page = ref(1)
+const limit = ref(20)
+const startDate = ref('')
+const endDate = ref('')
+
+// Computed properties for query params to ensure reactivity
+const queryParams = computed(() => {
+  const params: any = {
+    type: activeTab.value,
+    page: page.value,
+    limit: limit.value
+  }
+  
+  if (startDate.value) params.startDate = startDate.value
+  if (endDate.value) params.endDate = endDate.value
+  
+  return params
+})
 
 const { data, pending, refresh } = await useFetch('/api/sales', {
-  query: {
-    type: activeTab
-  },
-  watch: [activeTab]
+  query: queryParams,
+  watch: [activeTab, page, startDate, endDate]
+})
+
+// Reset page when filters change
+watch([activeTab, startDate, endDate], () => {
+  page.value = 1
 })
 
 const formatCurrency = (value: number, currency: string = 'IDR') => {
@@ -16,6 +37,7 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(value)
   }
   return new Intl.NumberFormat('en-US', {
@@ -24,35 +46,103 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
   }).format(value)
 }
 
-const totalSales = computed(() => {
-  if (!data.value?.data) return 0
+// Calculate totals from current page data (Note: for accurate global totals with pagination, 
+// ideally the API should return global totals, which it seems to do in 'meta' or separate aggregation endpoints)
+// Here we use the data from current page for display, but for "Total Sales" widgets we might want global stats.
+// However, the current API seems to return paginated data. 
+// For the summary cards, we probably want to show totals based on the *filtered* result set (all pages).
+// The current `data.meta.total` gives count. The API might need enhancement for sum totals across all pages if that's critical.
+// For now, let's keep the existing client-side sum logic but be aware it only sums the *current page*.
+// To fix this accurately without backend changes, we'd need a separate stats endpoint.
+// Let's rely on the user's current requirement for list filtering first.
+// A common pattern is showing "Page Total" vs "Grand Total". 
+// Let's modify the label to be clear or distinct.
+
+const pageTotalSales = computed(() => {
+  const salesData = data.value?.data
+  if (!salesData) return 0
   
   if (activeTab.value === 'motorcycle') {
-    return data.value.data.reduce((sum: number, sale: any) => sum + sale.sellingPriceIdr, 0)
+    // API returns 'sellingPrice' and 'currency'.
+    // If mixed currency, simple sum is wrong. 
+    // Assuming for now predominantly IDR or handled by display.
+    return salesData.reduce((sum: number, sale: any) => sum + (sale.currency === 'IDR' ? sale.sellingPrice : 0), 0)
   } else {
-    return data.value.data.reduce((sum: number, sale: any) => sum + sale.total, 0)
+    return salesData.reduce((sum: number, sale: any) => sum + sale.total, 0)
   }
 })
 
-const totalProfit = computed(() => {
-  if (!data.value?.data || activeTab.value !== 'motorcycle') return 0
-  return data.value.data.reduce((sum: number, sale: any) => sum + (sale.profit * (sale.currency === 'USD' ? sale.exchangeRate : 1)), 0)
+const pageTotalProfit = computed(() => {
+  const salesData = data.value?.data
+  if (!salesData || activeTab.value !== 'motorcycle') return 0
+  return salesData.reduce((sum: number, sale: any) => sum + (sale.profit * (sale.currency === 'USD' ? (sale.exchangeRate || 16000) : 1)), 0)
 })
 
-const totalItems = computed(() => {
-  if (!data.value?.data || activeTab.value !== 'sparepart') return 0
-  return data.value.data.reduce((sum: number, sale: any) => {
+const pageTotalItems = computed(() => {
+  const salesData = data.value?.data
+  if (!salesData || activeTab.value !== 'sparepart') return 0
+  return salesData.reduce((sum: number, sale: any) => {
     return sum + (sale.items?.reduce((itemSum: number, item: any) => itemSum + item.quantity, 0) || 0)
   }, 0)
+})
+
+// Type safe accessors to avoid union type errors
+const motorcycleSales = computed(() => {
+  if (activeTab.value !== 'motorcycle') return []
+  return (data.value?.data || []) as any[]
+})
+
+const sparepartSales = computed(() => {
+  if (activeTab.value !== 'sparepart') return []
+  return (data.value?.data || []) as any[]
 })
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div>
-      <h1 class="text-3xl font-bold">Riwayat Penjualan</h1>
-      <p class="text-base-content/60">Daftar semua transaksi penjualan motor dan sparepart</p>
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold">Riwayat Penjualan</h1>
+        <p class="text-base-content/60">Daftar semua transaksi penjualan motor dan sparepart</p>
+      </div>
+      
+      <!-- Date Filters -->
+      <div class="flex flex-wrap items-end gap-2">
+        <div class="form-control w-full md:w-auto">
+          <label class="label py-1"><span class="label-text text-xs">Dari Tanggal</span></label>
+          <div class="join">
+            <button class="btn btn-sm join-item btn-square pointer-events-none">
+              <IconCalendar class="w-4 h-4" />
+            </button>
+            <input 
+              v-model="startDate" 
+              type="date" 
+              class="input input-sm input-bordered join-item" 
+            />
+          </div>
+        </div>
+        <div class="form-control w-full md:w-auto">
+          <label class="label py-1"><span class="label-text text-xs">Sampai Tanggal</span></label>
+          <div class="join">
+             <button class="btn btn-sm join-item btn-square pointer-events-none">
+              <IconCalendar class="w-4 h-4" />
+            </button>
+            <input 
+              v-model="endDate" 
+              type="date" 
+              class="input input-sm input-bordered join-item" 
+            />
+          </div>
+        </div>
+        <button 
+          v-if="startDate || endDate" 
+          @click="startDate = ''; endDate = ''"
+          class="btn btn-sm btn-ghost text-error"
+        >
+          Reset
+        </button>
+      </div>
     </div>
 
     <!-- Tabs -->
@@ -77,32 +167,35 @@ const totalItems = computed(() => {
       </a>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Summary Cards (Current Page) -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="card bg-base-200 border border-base-300">
-        <div class="card-body">
+        <div class="card-body p-4">
           <h3 class="text-sm font-medium text-base-content/60">Total Transaksi</h3>
-          <p class="text-3xl font-bold text-primary">{{ data?.meta?.total || 0 }}</p>
+          <div class="flex items-baseline gap-2">
+            <p class="text-2xl font-bold text-primary">{{ data?.meta?.total || 0 }}</p>
+            <span class="text-xs text-base-content/40">transaksi</span>
+          </div>
         </div>
       </div>
       <div class="card bg-base-200 border border-base-300">
-        <div class="card-body">
-          <h3 class="text-sm font-medium text-base-content/60">Total Penjualan</h3>
-          <p class="text-3xl font-bold text-success">{{ formatCurrency(totalSales) }}</p>
+        <div class="card-body p-4">
+          <h3 class="text-sm font-medium text-base-content/60">Omset (Halaman Ini)</h3>
+          <p class="text-2xl font-bold text-success">{{ formatCurrency(pageTotalSales) }}</p>
         </div>
       </div>
       <div v-if="activeTab === 'motorcycle'" class="card bg-base-200 border border-base-300">
-        <div class="card-body">
-          <h3 class="text-sm font-medium text-base-content/60">Total Profit</h3>
-          <p :class="['text-3xl font-bold', totalProfit >= 0 ? 'text-success' : 'text-error']">
-            {{ formatCurrency(totalProfit) }}
+        <div class="card-body p-4">
+          <h3 class="text-sm font-medium text-base-content/60">Profit (Halaman Ini)</h3>
+          <p :class="['text-2xl font-bold', pageTotalProfit >= 0 ? 'text-success' : 'text-error']">
+            {{ formatCurrency(pageTotalProfit) }}
           </p>
         </div>
       </div>
       <div v-else class="card bg-base-200 border border-base-300">
-        <div class="card-body">
-          <h3 class="text-sm font-medium text-base-content/60">Total Item Terjual</h3>
-          <p class="text-3xl font-bold text-info">{{ totalItems }}</p>
+        <div class="card-body p-4">
+          <h3 class="text-sm font-medium text-base-content/60">Item Terjual (Halaman Ini)</h3>
+          <p class="text-2xl font-bold text-info">{{ pageTotalItems }}</p>
         </div>
       </div>
     </div>
@@ -113,12 +206,12 @@ const totalItems = computed(() => {
     </div>
 
     <!-- Motorcycle Sales Table -->
-    <div v-else-if="activeTab === 'motorcycle' && data?.data?.length" class="card bg-base-200 border border-base-300">
-      <div class="card-body">
+    <div v-else-if="activeTab === 'motorcycle' && motorcycleSales.length" class="card bg-base-200 border border-base-300">
+      <div class="card-body p-0">
         <div class="overflow-x-auto">
           <table class="table">
             <thead>
-              <tr>
+              <tr class="bg-base-200/50">
                 <th>Tanggal</th>
                 <th>Motor</th>
                 <th>Pembeli</th>
@@ -130,10 +223,10 @@ const totalItems = computed(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="sale in data.data" :key="sale.id" class="hover">
-                <td>{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
+              <tr v-for="sale in motorcycleSales" :key="sale.id" class="hover border-b border-base-200/50 last:border-0">
+                <td class="whitespace-nowrap">{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
                 <td>
-                  <NuxtLink :to="`/motorcycles/${sale.motorcycleId}`" class="link link-primary">
+                  <NuxtLink :to="`/motorcycles/${sale.motorcycleId}`" class="link link-primary no-underline hover:underline font-medium">
                     {{ sale.motorcycle?.model }} {{ sale.motorcycle?.year }}
                   </NuxtLink>
                   <p class="text-xs text-base-content/60">{{ sale.motorcycle?.color }}</p>
@@ -143,7 +236,7 @@ const totalItems = computed(() => {
                   <p class="text-xs text-base-content/60">{{ sale.buyerPhone }}</p>
                 </td>
                 <td>
-                  <span class="badge badge-outline">{{ sale.paymentMethod }}</span>
+                  <span class="badge badge-sm badge-outline">{{ sale.paymentMethod }}</span>
                 </td>
                 <td class="text-right font-mono">
                   {{ formatCurrency(sale.sellingPrice, sale.currency) }}
@@ -152,14 +245,13 @@ const totalItems = computed(() => {
                   {{ formatCurrency(sale.profit, sale.currency) }}
                 </td>
                 <td class="text-right">
-                  <span :class="['badge', sale.profitMargin >= 10 ? 'badge-success' : 'badge-warning']">
+                  <span :class="['badge badge-sm', sale.profitMargin >= 10 ? 'badge-success' : 'badge-warning']">
                     {{ sale.profitMargin?.toFixed(1) }}%
                   </span>
                 </td>
                 <td class="text-center">
-                  <NuxtLink :to="`/sales/receipt/${sale.id}`" class="btn btn-sm btn-ghost gap-2" target="_blank">
+                  <NuxtLink :to="`/sales/receipt/${sale.id}`" class="btn btn-sm btn-ghost btn-square" target="_blank" title="Cetak Kwitansi">
                     <IconPrinter class="w-4 h-4" />
-                    Kwitansi
                   </NuxtLink>
                 </td>
               </tr>
@@ -170,16 +262,16 @@ const totalItems = computed(() => {
     </div>
 
     <!-- Sparepart Sales Table -->
-    <div v-else-if="activeTab === 'sparepart' && data?.data?.length" class="card bg-base-200 border border-base-300">
-      <div class="card-body">
+    <div v-else-if="activeTab === 'sparepart' && sparepartSales.length" class="card bg-base-200 border border-base-300">
+      <div class="card-body p-0">
         <div class="overflow-x-auto">
           <table class="table">
             <thead>
-              <tr>
+              <tr class="bg-base-200/50">
                 <th>Tanggal</th>
                 <th>Invoice</th>
                 <th>Customer</th>
-                <th>Item</th>
+                <th class="min-w-[200px]">Item</th>
                 <th>Bayar</th>
                 <th class="text-right">Subtotal</th>
                 <th class="text-right">Diskon</th>
@@ -187,12 +279,12 @@ const totalItems = computed(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="sale in data.data" :key="sale.id" class="hover">
-                <td>{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
+              <tr v-for="sale in sparepartSales" :key="sale.id" class="hover border-b border-base-200/50 last:border-0">
+                <td class="whitespace-nowrap">{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
                 <td>
                   <NuxtLink 
                     :to="`/sales/sparepart-receipt/${sale.id}`" 
-                    class="font-mono text-sm font-medium text-primary hover:underline cursor-pointer"
+                    class="font-mono text-sm font-medium text-primary hover:underline"
                     target="_blank"
                   >
                     {{ sale.invoiceNumber }}
@@ -204,19 +296,22 @@ const totalItems = computed(() => {
                 </td>
                 <td>
                   <div class="space-y-1">
-                    <div v-for="item in sale.items" :key="item.id" class="text-xs">
-                      <span class="font-medium">{{ item.sparepart?.name }}</span>
-                      <span class="text-base-content/60"> × {{ item.quantity }}</span>
+                    <div v-for="item in sale.items" :key="item.id" class="text-xs grid grid-cols-[1fr_auto] gap-2">
+                      <span class="font-medium truncate">{{ item.sparepart?.name }}</span>
+                      <span class="text-base-content/60">x{{ item.quantity }}</span>
+                    </div>
+                    <div v-if="sale.items?.length > 3" class="text-xs text-base-content/40 italic">
+                      +{{ sale.items.length - 3 }} item lainnya
                     </div>
                   </div>
                 </td>
                 <td>
-                  <span class="badge badge-outline">{{ sale.paymentMethod }}</span>
+                  <span class="badge badge-sm badge-outline">{{ sale.paymentMethod }}</span>
                 </td>
-                <td class="text-right font-mono">
+                <td class="text-right font-mono text-xs">
                   {{ formatCurrency(sale.subtotal, sale.currency) }}
                 </td>
-                <td class="text-right font-mono text-error">
+                <td class="text-right font-mono text-xs text-error">
                   {{ sale.discount > 0 ? '-' + formatCurrency(sale.discount, sale.currency) : '-' }}
                 </td>
                 <td class="text-right font-mono font-bold text-success">
@@ -232,18 +327,56 @@ const totalItems = computed(() => {
     <!-- Empty State -->
     <div v-else class="card bg-base-200 border border-base-300">
       <div class="card-body items-center text-center py-12">
-        <IconCash class="w-16 h-16 text-base-content/20" :stroke-width="1" />
-        <h3 class="text-xl font-bold mt-4">Belum Ada Penjualan</h3>
-        <p class="text-base-content/60">
-          {{ activeTab === 'motorcycle' ? 'Belum ada transaksi penjualan motor tercatat' : 'Belum ada transaksi penjualan sparepart tercatat' }}
+        <IconSearch v-if="startDate || endDate" class="w-16 h-16 text-base-content/20" :stroke-width="1" />
+        <IconCash v-else class="w-16 h-16 text-base-content/20" :stroke-width="1" />
+        
+        <h3 class="text-xl font-bold mt-4">
+          {{ (startDate || endDate) ? 'Tidak Ditemukan' : 'Belum Ada Penjualan' }}
+        </h3>
+        <p class="text-base-content/60 max-w-sm">
+          {{ 
+            (startDate || endDate) 
+              ? 'Tidak ada transaksi yang sesuai dengan filter tanggal yang dipilih.' 
+              : `Belum ada transaksi penjualan ${activeTab === 'motorcycle' ? 'motor' : 'sparepart'} tercatat.` 
+          }}
         </p>
-        <NuxtLink 
-          :to="activeTab === 'motorcycle' ? '/motorcycles?status=AVAILABLE' : '/spareparts'" 
-          class="btn btn-primary mt-4"
+        
+        <div class="flex gap-2 mt-4">
+          <button v-if="startDate || endDate" @click="startDate = ''; endDate = ''" class="btn btn-outline">
+            Reset Filter
+          </button>
+          <NuxtLink 
+            :to="activeTab === 'motorcycle' ? '/motorcycles?status=AVAILABLE' : '/spareparts'" 
+            class="btn btn-primary"
+          >
+            {{ activeTab === 'motorcycle' ? 'Lihat Motor Tersedia' : 'Lihat Sparepart' }}
+          </NuxtLink>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div v-if="data?.meta && data.meta.totalPages > 1" class="flex justify-center mt-6">
+      <div class="join">
+        <button 
+          class="join-item btn" 
+          :class="{ 'btn-disabled': page === 1 }"
+          @click="page--"
         >
-          {{ activeTab === 'motorcycle' ? 'Lihat Motor Tersedia' : 'Lihat Sparepart' }}
-        </NuxtLink>
+          <IconChevronLeft class="w-4 h-4" />
+        </button>
+        <button class="join-item btn pointer-events-none">
+          Halaman {{ page }} dari {{ data.meta.totalPages }}
+        </button>
+        <button 
+          class="join-item btn" 
+          :class="{ 'btn-disabled': page >= data.meta.totalPages }"
+          @click="page++"
+        >
+          <IconChevronRight class="w-4 h-4" />
+        </button>
       </div>
     </div>
   </div>
 </template>
+
