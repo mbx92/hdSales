@@ -109,7 +109,13 @@ const handleExportPDF = async () => {
                 <h1 class="text-3xl font-bold">Laporan Transaksi</h1>
                 <p class="text-base-content/60">Analisis keuangan dengan filter lengkap dan export</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
+                <NuxtLink to="/reports/profit-loss" class="btn btn-outline btn-sm">
+                    Profit & Loss
+                </NuxtLink>
+                <NuxtLink to="/reports/inventory" class="btn btn-outline btn-sm">
+                    Inventory
+                </NuxtLink>
                 <button @click="handleExportExcel" class="btn btn-outline gap-2" :disabled="!report?.data?.length || exportingExcel">
                     <span v-if="exportingExcel" class="loading loading-spinner loading-sm"></span>
                     <IconFileSpreadsheet v-else class="w-5 h-5" :stroke-width="1.5" />

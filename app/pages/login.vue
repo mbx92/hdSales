@@ -53,11 +53,11 @@ onMounted(async () => {
         <div class="card-body p-8">
           <!-- Logo -->
           <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-2xl mb-4 animate-pulse-glow">
-              <span class="text-3xl font-bold text-primary-content">HD</span>
+            <div class="inline-flex items-center justify-center mb-4">
+              <img src="/logo.png" alt="DIGARASI" class="h-20 w-auto" onerror="this.style.display='none'" />
             </div>
-            <h1 class="text-2xl font-bold">HD Sales</h1>
-            <p class="text-base-content/60 mt-1">Harley Davidson Showroom</p>
+            <h1 class="text-2xl font-bold">DIGARASI ID</h1>
+            <p class="text-base-content/60 mt-1">Stock & Sales Management</p>
           </div>
 
           <!-- Error Alert -->
@@ -75,7 +75,7 @@ onMounted(async () => {
               <input
                 v-model="form.email"
                 type="email"
-                placeholder="owner@hdsales.com"
+                placeholder="email@digarasi.id"
                 class="input input-bordered bg-base-300 focus:border-primary"
                 required
               />
@@ -103,13 +103,6 @@ onMounted(async () => {
               <span v-else>Masuk</span>
             </button>
           </form>
-
-          <!-- Demo Credentials -->
-          <div class="divider text-xs text-base-content/40">Demo Account</div>
-          <div class="text-center text-sm text-base-content/60">
-            <p>Email: <code class="bg-base-300 px-2 py-0.5 rounded">owner@hdsales.com</code></p>
-            <p>Password: <code class="bg-base-300 px-2 py-0.5 rounded">admin123</code></p>
-          </div>
         </div>
       </div>
     </div>

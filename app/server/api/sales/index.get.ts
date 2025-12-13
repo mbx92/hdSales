@@ -59,36 +59,38 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // Handle sparepart sales
-    if (type === 'sparepart') {
+    // Handle product sales
+    if (type === 'product') {
         const where: any = {}
         if (startDate || endDate) {
             where.saleDate = dateFilter
         }
 
         const [sales, total] = await Promise.all([
-            prisma.sparepartSale.findMany({
+            prisma.productSale.findMany({
                 where,
                 skip,
                 take: limit,
                 orderBy: { saleDate: 'desc' },
                 include: {
-                    items: {
-                        include: {
-                            sparepart: {
-                                select: { name: true, sku: true }
-                            }
+                    product: {
+                        select: {
+                            id: true,
+                            name: true,
+                            sku: true,
+                            category: true,
+                            customCategory: true,
                         }
                     }
                 }
             }),
-            prisma.sparepartSale.count({ where }),
+            prisma.productSale.count({ where }),
         ])
 
         return {
             data: sales.map(sale => ({
                 ...sale,
-                type: 'sparepart'
+                type: 'product'
             })),
             meta: {
                 page,
@@ -102,7 +104,7 @@ export default defineEventHandler(async (event) => {
     // Handle combined sales (all)
     const motorcycleWhere: any = {}
     const sparepartWhere: any = {}
-    
+
     if (startDate || endDate) {
         motorcycleWhere.saleDate = dateFilter
         sparepartWhere.saleDate = dateFilter

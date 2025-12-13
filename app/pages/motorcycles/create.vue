@@ -7,15 +7,13 @@ const form = ref({
   vin: '',
   brand: 'Harley Davidson',
   model: '',
+  customModel: '', // NEW: for custom model
   year: new Date().getFullYear(),
   color: '',
-  mileage: '',
+  mileage: null as number | null,
   condition: 'USED',
   currency: 'IDR',
-  status: 'INSPECTION',
-  ownerName: '',
-  ownerPhone: '',
-  ownerLocation: '',
+  status: 'AVAILABLE', // Changed default from INSPECTION
   notes: '',
 })
 
@@ -42,6 +40,7 @@ const models = [
   'Pan America',
   'Sportster S',
   'Nightster',
+  'Custom', // NEW: Custom option
 ]
 
 const years = Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i)
@@ -53,10 +52,7 @@ const handleSubmit = async () => {
   try {
     const motorcycle = await $fetch('/api/motorcycles', {
       method: 'POST',
-      body: {
-        ...form.value,
-        mileage: form.value.mileage ? parseInt(form.value.mileage) : null,
-      },
+      body: form.value,
     })
 
     router.push(`/motorcycles/${motorcycle.id}`)
@@ -138,6 +134,20 @@ const handleSubmit = async () => {
               </select>
             </div>
 
+            <!-- Custom Model Field (conditional) -->
+            <div v-if="form.model === 'Custom'" class="form-control">
+              <label class="label">
+                <span class="label-text font-medium">Nama Model Custom *</span>
+              </label>
+              <input
+                v-model="form.customModel"
+                type="text"
+                placeholder="Masukkan nama model"
+                class="input input-bordered bg-base-300"
+                :required="form.model === 'Custom'"
+              />
+            </div>
+
             <div class="form-control">
               <label class="label">
                 <span class="label-text font-medium">Tahun *</span>
@@ -198,61 +208,14 @@ const handleSubmit = async () => {
                 <span class="label-text font-medium">Status</span>
               </label>
               <select v-model="form.status" class="select select-bordered bg-base-300">
-                <option value="INSPECTION">Inspeksi</option>
                 <option value="AVAILABLE">Tersedia</option>
+                <option value="ON_PROGRESS">On Progress</option>
               </select>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Owner Info -->
-      <div class="card bg-base-200 border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-lg mb-4">
-            <IconUser class="w-5 h-5" :stroke-width="1.5" />
-            Informasi Pemilik
-          </h2>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">Nama Pemilik</span>
-              </label>
-              <input
-                v-model="form.ownerName"
-                type="text"
-                placeholder="John Doe"
-                class="input input-bordered bg-base-300"
-              />
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">No. Telepon</span>
-              </label>
-              <input
-                v-model="form.ownerPhone"
-                type="tel"
-                placeholder="081234567890"
-                class="input input-bordered bg-base-300"
-              />
-            </div>
-
-            <div class="form-control md:col-span-2">
-              <label class="label">
-                <span class="label-text font-medium">Lokasi</span>
-              </label>
-              <input
-                v-model="form.ownerLocation"
-                type="text"
-                placeholder="Denpasar, Bali"
-                class="input input-bordered bg-base-300"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Notes -->
       <div class="card bg-base-200 border border-base-300">

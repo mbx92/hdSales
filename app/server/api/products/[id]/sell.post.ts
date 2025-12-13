@@ -1,6 +1,6 @@
-import prisma from '../../../utils/prisma'
-import { convertToIdr } from '../../../utils/currency'
-import { generateInvoiceNumber } from '../../../utils/generateInvoice'
+import prisma from '~/server/utils/prisma'
+import { convertToIdr } from '~/server/utils/currency'
+import { generateInvoiceNumber } from '~/server/utils/generateInvoice'
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     if (!id) {
         throw createError({
             statusCode: 400,
-            message: 'ID motor tidak valid',
+            message: 'ID produk tidak valid',
         })
     }
 
@@ -20,34 +20,34 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const motorcycle = await prisma.motorcycle.findUnique({
+    const product = await prisma.product.findUnique({
         where: { id },
     })
 
-    if (!motorcycle) {
+    if (!product) {
         throw createError({
             statusCode: 404,
-            message: 'Motor tidak ditemukan',
+            message: 'Produk tidak ditemukan',
         })
     }
 
-    if (motorcycle.status === 'SOLD') {
+    if (product.status === 'SOLD') {
         throw createError({
             statusCode: 400,
-            message: 'Motor ini sudah terjual',
+            message: 'Produk ini sudah terjual',
         })
     }
 
-    if (motorcycle.status !== 'AVAILABLE') {
+    if (product.status !== 'AVAILABLE') {
         throw createError({
             statusCode: 400,
-            message: 'Motor harus dalam status AVAILABLE untuk dijual',
+            message: 'Produk harus dalam status AVAILABLE untuk dijual',
         })
     }
 
     // Generate invoice number
     const saleDate = body.saleDate ? new Date(body.saleDate) : new Date()
-    const invoiceNumber = await generateInvoiceNumber('MTR', saleDate)
+    const invoiceNumber = await generateInvoiceNumber('PRD', saleDate)
 
     // Convert selling price to IDR
     const { amountIdr: sellingPriceIdr, exchangeRate } = await convertToIdr(
@@ -56,10 +56,10 @@ export default defineEventHandler(async (event) => {
     )
 
     // Calculate total cost in IDR
-    const allCosts = await prisma.cost.findMany({
-        where: { motorcycleId: id },
+    const allCosts = await prisma.productCost.findMany({
+        where: { productId: id },
     })
-    const totalCostIdr = allCosts.reduce((sum, c) => sum + c.amountIdr, 0)
+    const totalCostIdr = allCosts.reduce((sum: number, c: any) => sum + c.amountIdr, 0)
 
     // Calculate profit
     const profitIdr = sellingPriceIdr - totalCostIdr
@@ -78,22 +78,22 @@ export default defineEventHandler(async (event) => {
             currency: body.currency,
             exchangeRate,
             amountIdr: sellingPriceIdr,
-            description: `Penjualan ${motorcycle.brand} ${motorcycle.model} ${motorcycle.year}`,
-            category: 'MOTORCYCLE_SALE',
+            description: `Penjualan ${product.name}`,
+            category: 'PRODUCT_SALE',
             transactionDate: saleDate,
         },
     })
 
     // Create sale transaction with invoice number
-    const saleTransaction = await prisma.saleTransaction.create({
+    const saleTransaction = await prisma.productSale.create({
         data: {
             invoiceNumber,
-            motorcycleId: id,
+            productId: id,
             sellingPrice: parseFloat(body.sellingPrice),
             currency: body.currency,
             exchangeRate,
             sellingPriceIdr,
-            totalCost: motorcycle.currency === 'USD' ? totalCostIdr / exchangeRate : totalCostIdr,
+            totalCost: product.currency === 'USD' ? totalCostIdr / exchangeRate : totalCostIdr,
             profit,
             profitMargin,
             buyerName: body.buyerName,
@@ -108,8 +108,8 @@ export default defineEventHandler(async (event) => {
         },
     })
 
-    // Update motorcycle status
-    await prisma.motorcycle.update({
+    // Update product status
+    await prisma.product.update({
         where: { id },
         data: {
             status: 'SOLD',

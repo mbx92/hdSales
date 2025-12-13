@@ -1,0 +1,55 @@
+import prisma from './prisma'
+
+type InvoicePrefix = 'MTR' | 'PRD' | 'SPR'
+
+/**
+ * Generate unique invoice number with race-condition protection
+ * Format: PREFIX-YYMM-NNNN (e.g. MTR-2312-0001)
+ * 
+ * Uses Prisma $transaction with upsert to atomically increment counter
+ */
+export async function generateInvoiceNumber(
+    prefix: InvoicePrefix,
+    date: Date = new Date()
+): Promise<string> {
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const yearShort = year.toString().slice(-2)
+    const monthStr = month.toString().padStart(2, '0')
+
+    // Use transaction to ensure atomic update
+    const counter = await prisma.$transaction(async (tx) => {
+        // Try to get existing counter
+        const existing = await tx.invoiceCounter.findUnique({
+            where: {
+                prefix_year_month: {
+                    prefix,
+                    year,
+                    month,
+                },
+            },
+        })
+
+        if (existing) {
+            // Increment existing counter
+            return await tx.invoiceCounter.update({
+                where: { id: existing.id },
+                data: { lastNumber: existing.lastNumber + 1 },
+            })
+        } else {
+            // Create new counter starting at 1
+            return await tx.invoiceCounter.create({
+                data: {
+                    prefix,
+                    year,
+                    month,
+                    lastNumber: 1,
+                },
+            })
+        }
+    })
+
+    // Format: MTR-2312-0001
+    const sequence = counter.lastNumber.toString().padStart(4, '0')
+    return `${prefix}-${yearShort}${monthStr}-${sequence}`
+}

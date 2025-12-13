@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { IconPlus, IconSearch, IconMotorbike } from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconBox } from '@tabler/icons-vue'
 
-const route = useRoute()
-
-const status = ref(route.query.status as string || '')
+const status = ref('')
+const category = ref('')
 const search = ref('')
-const page = ref(1)
 
-const { data, pending, refresh } = await useFetch('/api/motorcycles', {
+const { data, pending, refresh } = await useFetch('/api/products', {
   query: {
     status,
+    category,
     search,
-    page,
-    limit: 12,
   },
-  watch: [status, search, page],
+  watch: [status, category, search],
 })
 
 const statusOptions = [
@@ -24,11 +21,29 @@ const statusOptions = [
   { value: 'SOLD', label: 'Terjual' },
 ]
 
+const categoryOptions = [
+  { value: '', label: 'Semua Kategori' },
+  { value: 'SPAREPART', label: 'Sparepart' },
+  { value: 'ACCESSORIES', label: 'Accessories' },
+  { value: 'APPAREL', label: 'Apparel' },
+  { value: 'CUSTOM', label: 'Custom' },
+]
+
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'AVAILABLE': return 'badge-success'
     case 'ON_PROGRESS': return 'badge-warning'
     case 'SOLD': return 'badge-info'
+    default: return 'badge-ghost'
+  }
+}
+
+const getCategoryBadge = (category: string) => {
+  switch (category) {
+    case 'SPAREPART': return 'badge-primary'
+    case 'ACCESSORIES': return 'badge-secondary'
+    case 'APPAREL': return 'badge-accent'
+    case 'CUSTOM': return 'badge-neutral'
     default: return 'badge-ghost'
   }
 }
@@ -53,12 +68,12 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold">Daftar Motor</h1>
-        <p class="text-base-content/60">Kelola inventori motor Anda</p>
+        <h1 class="text-3xl font-bold">Daftar Product</h1>
+        <p class="text-base-content/60">Kelola inventori product Anda</p>
       </div>
-      <NuxtLink to="/motorcycles/create" class="btn btn-primary">
+      <NuxtLink to="/products/new" class="btn btn-primary">
         <IconPlus class="w-5 h-5 mr-2" :stroke-width="1.5" />
-        Tambah Motor
+        Tambah Product
       </NuxtLink>
     </div>
 
@@ -71,12 +86,17 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
               <input
                 v-model="search"
                 type="text"
-                placeholder="Cari VIN, model, atau owner..."
+                placeholder="Cari nama, SKU, atau supplier..."
                 class="input input-bordered w-full bg-base-300 pr-10"
               />
               <IconSearch class="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40" :stroke-width="1.5" />
             </div>
           </div>
+          <select v-model="category" class="select select-bordered bg-base-300 w-full md:w-48">
+            <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
           <select v-model="status" class="select select-bordered bg-base-300 w-full md:w-48">
             <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -91,48 +111,43 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
       <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
 
-    <!-- Motorcycles Grid -->
-    <div v-else-if="data?.data?.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Products Grid -->
+    <div v-else-if="data?.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <NuxtLink
-        v-for="motorcycle in data.data"
-        :key="motorcycle.id"
-        :to="`/motorcycles/${motorcycle.id}`"
+        v-for="product in data"
+        :key="product.id"
+        :to="`/products/${product.id}`"
         class="card bg-base-200 border border-base-300 card-hover"
       >
         <figure class="px-4 pt-4">
           <div class="w-full h-48 bg-base-300 rounded-xl flex items-center justify-center">
-            <IconMotorbike class="w-24 h-24 text-base-content/20" :stroke-width="1" />
+            <IconBox class="w-24 h-24 text-base-content/20" :stroke-width="1" />
           </div>
         </figure>
         <div class="card-body">
-          <div class="flex items-start justify-between">
-            <div>
-              <h2 class="card-title text-lg">
-                {{ motorcycle.model === 'Custom' && motorcycle.customModel ? motorcycle.customModel : motorcycle.model }}
-              </h2>
-              <p class="text-sm text-base-content/60">{{ motorcycle.brand }} • {{ motorcycle.year }}</p>
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1">
+              <h2 class="card-title text-lg line-clamp-1">{{ product.name }}</h2>
+              <p class="text-sm text-base-content/60">{{ product.sku || 'No SKU' }}</p>
             </div>
-            <div :class="['badge', getStatusBadge(motorcycle.status)]">
-              {{ motorcycle.status }}
+            <div class="flex flex-col gap-1 items-end">
+              <div :class="['badge badge-sm', getCategoryBadge(product.category)]">
+                {{ product.customCategory || product.category }}
+              </div>
+              <div :class="['badge badge-sm', getStatusBadge(product.status)]">
+                {{ product.status }}
+              </div>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2 mt-3 text-sm">
             <div>
-              <span class="text-base-content/60">VIN</span>
-              <p class="font-mono text-xs">{{ motorcycle.vin.slice(-8) }}</p>
-            </div>
-            <div>
-              <span class="text-base-content/60">Warna</span>
-              <p>{{ motorcycle.color || '-' }}</p>
-            </div>
-            <div>
-              <span class="text-base-content/60">KM</span>
-              <p>{{ motorcycle.mileage?.toLocaleString() || '-' }}</p>
+              <span class="text-base-content/60">Supplier</span>
+              <p class="truncate">{{ product.supplier || '-' }}</p>
             </div>
             <div>
               <span class="text-base-content/60">Biaya</span>
-              <p class="font-mono text-xs">{{ motorcycle._count?.costs || 0 }} item</p>
+              <p class="font-mono text-xs">{{ product.costs?.length || 0 }} item</p>
             </div>
           </div>
 
@@ -141,14 +156,14 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
           <div class="flex items-center justify-between">
             <div>
               <span class="text-xs text-base-content/60">HPP</span>
-              <p class="font-bold text-primary">
-                {{ formatCurrency(motorcycle.totalCost, motorcycle.currency) }}
+              <p class="font-bold text-primary text-sm">
+                {{ formatCurrency(product.totalCost, product.currency) }}
               </p>
             </div>
-            <div v-if="motorcycle.sellingPrice" class="text-right">
+            <div v-if="product.sellingPrice" class="text-right">
               <span class="text-xs text-base-content/60">Harga Jual</span>
-              <p class="font-bold text-success">
-                {{ formatCurrency(motorcycle.sellingPrice, motorcycle.currency) }}
+              <p class="font-bold text-success text-sm">
+                {{ formatCurrency(product.sellingPrice, product.currency) }}
               </p>
             </div>
           </div>
@@ -159,35 +174,12 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
     <!-- Empty State -->
     <div v-else class="card bg-base-200 border border-base-300">
       <div class="card-body items-center text-center py-12">
-        <IconMotorbike class="w-16 h-16 text-base-content/20" :stroke-width="1" />
-        <h3 class="text-xl font-bold mt-4">Belum Ada Motor</h3>
-        <p class="text-base-content/60">Mulai tambahkan motor pertama Anda</p>
-        <NuxtLink to="/motorcycles/create" class="btn btn-primary mt-4">
-          Tambah Motor
+        <IconBox class="w-16 h-16 text-base-content/20" :stroke-width="1" />
+        <h3 class="text-xl font-bold mt-4">Belum Ada Product</h3>
+        <p class="text-base-content/60">Mulai tambahkan product pertama Anda</p>
+        <NuxtLink to="/products/new" class="btn btn-primary mt-4">
+          Tambah Product
         </NuxtLink>
-      </div>
-    </div>
-
-    <!-- Pagination -->
-    <div v-if="data?.meta?.totalPages && data.meta.totalPages > 1" class="flex justify-center">
-      <div class="join">
-        <button
-          class="join-item btn"
-          :disabled="page <= 1"
-          @click="page--"
-        >
-          «
-        </button>
-        <button class="join-item btn">
-          Halaman {{ page }} dari {{ data?.meta?.totalPages }}
-        </button>
-        <button
-          class="join-item btn"
-          :disabled="page >= (data?.meta?.totalPages || 1)"
-          @click="page++"
-        >
-          »
-        </button>
       </div>
     </div>
   </div>

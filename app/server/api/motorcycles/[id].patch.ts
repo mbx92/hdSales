@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
             vin: body.vin ?? existingMotorcycle.vin,
             brand: body.brand ?? existingMotorcycle.brand,
             model: body.model ?? existingMotorcycle.model,
+            customModel: body.customModel ?? existingMotorcycle.customModel,
             year: body.year ? parseInt(body.year) : existingMotorcycle.year,
             color: body.color ?? existingMotorcycle.color,
             mileage: body.mileage !== undefined ? parseInt(body.mileage) : existingMotorcycle.mileage,

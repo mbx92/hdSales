@@ -14,21 +14,43 @@ if (!motorcycle.value) {
   })
 }
 
-const form = ref({
-  vin: motorcycle.value.vin,
-  brand: motorcycle.value.brand,
-  model: motorcycle.value.model,
-  year: motorcycle.value.year,
-  color: motorcycle.value.color || '',
-  mileage: motorcycle.value.mileage?.toString() || '',
-  condition: motorcycle.value.condition,
-  currency: motorcycle.value.currency,
-  status: motorcycle.value.status,
-  ownerName: motorcycle.value.ownerName || '',
-  ownerPhone: motorcycle.value.ownerPhone || '',
-  ownerLocation: motorcycle.value.ownerLocation || '',
-  notes: motorcycle.value.notes || '',
-  sellingPrice: motorcycle.value.sellingPrice?.toString() || '',
+// Form data - initialized with motorcycle data directly
+const formData = ref({
+  vin: motorcycle.value?.vin || '',
+  brand: motorcycle.value?.brand || '',
+  model: motorcycle.value?.model || '',
+  customModel: motorcycle.value?.customModel || '',
+  year: motorcycle.value?.year || new Date().getFullYear(),
+  color: motorcycle.value?.color || '',
+  mileage: motorcycle.value?.mileage || null,
+  condition: motorcycle.value?.condition || 'USED',
+  currency: motorcycle.value?.currency || 'IDR',
+  status: motorcycle.value?.status || 'AVAILABLE',
+  notes: motorcycle.value?.notes || '',
+  sellingPrice: motorcycle.value?.sellingPrice || null,
+})
+
+// Re-sync form when data changes (for client navigation)
+onMounted(() => {
+  if (motorcycle.value) {
+    formData.value = {
+      vin: motorcycle.value.vin,
+      brand: motorcycle.value.brand,
+      model: motorcycle.value.model,
+      customModel: motorcycle.value.customModel || '',
+      year: motorcycle.value.year,
+      color: motorcycle.value.color || '',
+      mileage: motorcycle.value.mileage || null,
+      condition: motorcycle.value.condition,
+      currency: motorcycle.value.currency,
+      status: motorcycle.value.status,
+      notes: motorcycle.value.notes || '',
+      sellingPrice: motorcycle.value.sellingPrice || null,
+    }
+    if (import.meta.dev) {
+      console.log('🏍️ Form initialized with:', formData.value)
+    }
+  }
 })
 
 const loading = ref(false)
@@ -54,6 +76,7 @@ const models = [
   'Pan America',
   'Sportster S',
   'Nightster',
+  'Custom', // NEW: Custom option
 ]
 
 const years = Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i)
@@ -65,11 +88,7 @@ const handleSubmit = async () => {
   try {
     await $fetch(`/api/motorcycles/${id}`, {
       method: 'PATCH',
-      body: {
-        ...form.value,
-        mileage: form.value.mileage ? parseInt(form.value.mileage) : null,
-        sellingPrice: form.value.sellingPrice ? parseFloat(form.value.sellingPrice) : null,
-      },
+      body: formData.value,
     })
 
     router.push(`/motorcycles/${id}`)
@@ -122,7 +141,7 @@ const handleSubmit = async () => {
                   <span class="label-text font-medium">VIN (Vehicle Identification Number) *</span>
                 </label>
                 <input
-                  v-model="form.vin"
+                  v-model="formData.vin"
                   type="text"
                   placeholder="1HD1KB4147Y123456"
                   class="input input-bordered bg-base-300 font-mono uppercase"
@@ -139,7 +158,7 @@ const handleSubmit = async () => {
                   <span class="label-text font-medium">Brand</span>
                 </label>
                 <input
-                  v-model="form.brand"
+                  v-model="formData.brand"
                   type="text"
                   class="input input-bordered bg-base-300"
                 />
@@ -149,7 +168,7 @@ const handleSubmit = async () => {
                 <label class="label">
                   <span class="label-text font-medium">Model *</span>
                 </label>
-                <select v-model="form.model" class="select select-bordered bg-base-300" required>
+                <select v-model="formData.model" class="select select-bordered bg-base-300" required>
                   <option value="" disabled>Pilih model</option>
                   <option v-for="model in models" :key="model" :value="model">
                     {{ model }}
@@ -157,11 +176,25 @@ const handleSubmit = async () => {
                 </select>
               </div>
 
+              <!-- Custom Model Field (conditional) -->
+              <div v-if="formData.model === 'Custom'" class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">Nama Model Custom *</span>
+                </label>
+                <input
+                  v-model="formData.customModel"
+                  type="text"
+                  placeholder="Masukkan nama model"
+                  class="input input-bordered bg-base-300"
+                  :required="formData.model === 'Custom'"
+                />
+              </div>
+
               <div class="form-control">
                 <label class="label">
                   <span class="label-text font-medium">Tahun *</span>
                 </label>
-                <select v-model="form.year" class="select select-bordered bg-base-300" required>
+                <select v-model="formData.year" class="select select-bordered bg-base-300" required>
                   <option v-for="year in years" :key="year" :value="year">
                     {{ year }}
                   </option>
@@ -173,7 +206,7 @@ const handleSubmit = async () => {
                   <span class="label-text font-medium">Warna</span>
                 </label>
                 <input
-                  v-model="form.color"
+                  v-model="formData.color"
                   type="text"
                   placeholder="Vivid Black"
                   class="input input-bordered bg-base-300"
@@ -185,7 +218,7 @@ const handleSubmit = async () => {
                   <span class="label-text font-medium">Kilometer</span>
                 </label>
                 <input
-                  v-model="form.mileage"
+                  v-model="formData.mileage"
                   type="number"
                   placeholder="12500"
                   class="input input-bordered bg-base-300"
@@ -197,7 +230,7 @@ const handleSubmit = async () => {
                 <label class="label">
                   <span class="label-text font-medium">Kondisi</span>
                 </label>
-                <select v-model="form.condition" class="select select-bordered bg-base-300">
+                <select v-model="formData.condition" class="select select-bordered bg-base-300">
                   <option value="USED">Bekas</option>
                   <option value="NEW">Baru</option>
                 </select>
@@ -207,7 +240,7 @@ const handleSubmit = async () => {
                 <label class="label">
                   <span class="label-text font-medium">Currency *</span>
                 </label>
-                <select v-model="form.currency" class="select select-bordered bg-base-300" required disabled>
+                <select v-model="formData.currency" class="select select-bordered bg-base-300" required disabled>
                   <option value="IDR">IDR (Rupiah)</option>
                 </select>
               </div>
@@ -216,9 +249,9 @@ const handleSubmit = async () => {
                 <label class="label">
                   <span class="label-text font-medium">Status</span>
                 </label>
-                <select v-model="form.status" class="select select-bordered bg-base-300">
-                  <option value="INSPECTION">Inspeksi</option>
+                <select v-model="formData.status" class="select select-bordered bg-base-300">
                   <option value="AVAILABLE">Tersedia</option>
+                  <option value="ON_PROGRESS">On Progress</option>
                   <option value="SOLD">Terjual</option>
                 </select>
               </div>
@@ -228,7 +261,7 @@ const handleSubmit = async () => {
                   <span class="label-text font-medium">Harga Jual</span>
                 </label>
                 <input
-                  v-model="form.sellingPrice"
+                  v-model="formData.sellingPrice"
                   type="number"
                   step="0.01"
                   placeholder="0"
@@ -240,53 +273,6 @@ const handleSubmit = async () => {
           </div>
         </div>
 
-        <!-- Owner Info -->
-        <div class="card bg-base-200 border border-base-300">
-          <div class="card-body">
-            <h2 class="card-title text-lg mb-4">
-              <IconUser class="w-5 h-5" :stroke-width="1.5" />
-              Informasi Pemilik
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text font-medium">Nama Pemilik</span>
-                </label>
-                <input
-                  v-model="form.ownerName"
-                  type="text"
-                  placeholder="John Doe"
-                  class="input input-bordered bg-base-300"
-                />
-              </div>
-
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text font-medium">No. Telepon</span>
-                </label>
-                <input
-                  v-model="form.ownerPhone"
-                  type="tel"
-                  placeholder="081234567890"
-                  class="input input-bordered bg-base-300"
-                />
-              </div>
-
-              <div class="form-control md:col-span-2">
-                <label class="label">
-                  <span class="label-text font-medium">Lokasi</span>
-                </label>
-                <input
-                  v-model="form.ownerLocation"
-                  type="text"
-                  placeholder="Denpasar, Bali"
-                  class="input input-bordered bg-base-300"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- Notes -->
         <div class="card bg-base-200 border border-base-300">
@@ -297,7 +283,7 @@ const handleSubmit = async () => {
             </h2>
             
             <textarea
-              v-model="form.notes"
+              v-model="formData.notes"
               class="textarea textarea-bordered bg-base-300 h-32"
               placeholder="Catatan tambahan tentang motor ini..."
             ></textarea>

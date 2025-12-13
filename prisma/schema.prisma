@@ -13,8 +13,8 @@ datasource db {
 
 model ExchangeRate {
   id            String   @id @default(cuid())
-  fromCurrency  String   // USD
-  toCurrency    String   // IDR
+  fromCurrency  String // USD
+  toCurrency    String // IDR
   rate          Float
   effectiveDate DateTime @default(now())
   createdAt     DateTime @default(now())
@@ -30,23 +30,24 @@ model ExchangeRate {
 // ============================================
 
 model Motorcycle {
-  id           String   @id @default(cuid())
-  vin          String   @unique
-  brand        String   @default("Harley Davidson")
-  model        String
-  year         Int
-  color        String?
-  mileage      Int?
-  condition    String   @default("USED") // USED/NEW
+  id          String  @id @default(cuid())
+  vin         String  @unique
+  brand       String  @default("Harley Davidson")
+  model       String
+  customModel String? // Custom model name when model is "Custom"
+  year        Int
+  color       String?
+  mileage     Int?
+  condition   String  @default("USED") // USED/NEW
 
   // Financial
-  currency     String   // IDR or USD
-  totalCost    Float    @default(0) // HPP (auto calculated)
+  currency     String // IDR or USD
+  totalCost    Float  @default(0) // HPP (auto calculated)
   sellingPrice Float? // Harga jual (manual input)
   profit       Float? // Profit (auto calculated)
 
-  // Status: INSPECTION, AVAILABLE, SOLD
-  status       String   @default("INSPECTION")
+  // Status: AVAILABLE, ON_PROGRESS, SOLD
+  status String @default("AVAILABLE")
 
   // Location & Owner
   ownerName     String?
@@ -55,8 +56,8 @@ model Motorcycle {
 
   // Metadata
   notes     String?
-  photos    String   @default("[]") // JSON array of image URLs
-  documents String   @default("[]") // JSON array: STNK, BPKB, etc
+  photos    String  @default("[]") // JSON array of image URLs
+  documents String  @default("[]") // JSON array: STNK, BPKB, etc
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,9 +116,10 @@ model Cost {
 // ============================================
 
 model SaleTransaction {
-  id           String     @id @default(cuid())
-  motorcycleId String     @unique
-  motorcycle   Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
+  id            String     @id @default(cuid())
+  invoiceNumber String?    @unique // Format: MTR-YYMM-NNNN (optional for migration)
+  motorcycleId  String     @unique
+  motorcycle    Motorcycle @relation(fields: [motorcycleId], references: [id], onDelete: Cascade)
 
   sellingPrice Float
   currency     String
@@ -179,6 +181,8 @@ model CashFlow {
   costs            Cost[]
   saleTransactions SaleTransaction[]
   sparepartSales   SparepartSale[]
+  productCosts     ProductCost[]
+  productSales     ProductSale[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -193,102 +197,215 @@ model CashFlow {
 // ============================================
 
 model Supplier {
-  id          String   @id @default(cuid())
-  name        String
-  phone       String?
-  email       String?
-  address     String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  spareparts  Sparepart[]
-  
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  spareparts Sparepart[]
+
   @@map("suppliers")
 }
 
 model Sparepart {
-  id              String   @id @default(cuid())
-  sku             String   @unique
-  name            String
-  category        String   // SPAREPART, ACCESSORY, APPAREL, OTHER
-  brand           String?
-  description     String?
-  
+  id          String  @id @default(cuid())
+  sku         String  @unique
+  name        String
+  category    String // SPAREPART, ACCESSORY, APPAREL, OTHER
+  brand       String?
+  description String?
+
   // Pricing
-  purchasePrice   Float
-  sellingPrice    Float
-  currency        String   @default("IDR")
-  
+  purchasePrice Float
+  sellingPrice  Float
+  currency      String @default("IDR")
+
   // Stock
-  stock           Int      @default(0)
-  minStock        Int      @default(1)
-  
+  stock    Int @default(0)
+  minStock Int @default(1)
+
   // Supplier
-  supplierId      String?
-  supplier        Supplier? @relation(fields: [supplierId], references: [id])
-  
-  status          String   @default("ACTIVE")
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  saleItems       SparepartSaleItem[]
-  
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  status String @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saleItems SparepartSaleItem[]
+
   @@map("spareparts")
 }
 
 model SparepartSale {
-  id              String   @id @default(cuid())
-  invoiceNumber   String   @unique
-  saleDate        DateTime @default(now())
-  
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  saleDate      DateTime @default(now())
+
   // Buyer info
-  customerName    String?
-  customerPhone   String?
-  
+  customerName  String?
+  customerPhone String?
+
   // Payment
-  paymentMethod   String   @default("CASH")
-  
+  paymentMethod String @default("CASH")
+
   // Totals
-  subtotal        Float
-  discount        Float    @default(0)
-  total           Float
-  paidAmount      Float
-  
-  currency        String   @default("IDR")
-  exchangeRate    Float    @default(1)
-  
-  notes           String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  items           SparepartSaleItem[]
-  
+  subtotal   Float
+  discount   Float @default(0)
+  total      Float
+  paidAmount Float
+
+  currency     String @default("IDR")
+  exchangeRate Float  @default(1)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items SparepartSaleItem[]
+
   // Relation to CashFlow
-  cashFlowId      String?
-  cashFlow        CashFlow? @relation(fields: [cashFlowId], references: [id])
-  
+  cashFlowId String?
+  cashFlow   CashFlow? @relation(fields: [cashFlowId], references: [id])
+
   @@map("sparepart_sales")
 }
 
 model SparepartSaleItem {
-  id              String   @id @default(cuid())
-  
-  saleId          String
-  sale            SparepartSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  
-  sparepartId     String
-  sparepart       Sparepart @relation(fields: [sparepartId], references: [id])
-  
-  quantity        Int
-  unitPrice       Float
-  subtotal        Float
-  
-  createdAt       DateTime @default(now())
-  
+  id String @id @default(cuid())
+
+  saleId String
+  sale   SparepartSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  sparepartId String
+  sparepart   Sparepart @relation(fields: [sparepartId], references: [id])
+
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+
+  createdAt DateTime @default(now())
+
   @@map("sparepart_sale_items")
+}
+
+// ============================================
+// PRODUCT MODULE
+// ============================================
+
+model Product {
+  id String @id @default(cuid())
+
+  // Category: SPAREPART, ACCESSORIES, APPAREL, CUSTOM
+  category       String
+  customCategory String? // When category is CUSTOM
+
+  name        String
+  sku         String? @unique
+  description String?
+
+  // Financial
+  currency     String @default("IDR")
+  totalCost    Float  @default(0) // HPP (auto calculated from costs)
+  sellingPrice Float? // Harga jual (manual input)
+  profit       Float? // Profit (auto calculated)
+
+  // Status: AVAILABLE, ON_PROGRESS, SOLD
+  status String @default("AVAILABLE")
+
+  purchaseDate DateTime @default(now())
+  supplier     String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  costs           ProductCost[]
+  saleTransaction ProductSale?
+
+  @@index([status])
+  @@index([category])
+  @@map("products")
+}
+
+model ProductCost {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Component: PURCHASE, SHIPPING, CUSTOMS, OTHER
+  component   String
+  description String
+  amount      Float
+  currency    String
+
+  // Conversion to IDR
+  exchangeRate Float
+  amountIdr    Float
+
+  transactionDate DateTime @default(now())
+  paymentMethod   String?
+  receipt         String?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to cash flow
+  cashFlow   CashFlow @relation(fields: [cashFlowId], references: [id])
+  cashFlowId String
+
+  @@index([productId])
+  @@map("product_costs")
+}
+
+model ProductSale {
+  id            String  @id @default(cuid())
+  invoiceNumber String? @unique // Format: PRD-YYMM-NNNN (optional for migration)
+  productId     String  @unique
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sellingPrice Float
+  currency     String
+
+  // Conversion to IDR
+  exchangeRate    Float
+  sellingPriceIdr Float
+
+  // Profit calculation
+  totalCost    Float
+  profit       Float
+  profitMargin Float
+
+  // Customer info
+  buyerName    String
+  buyerPhone   String?
+  buyerAddress String?
+
+  // Payment
+  paymentMethod   String
+  paidAmount      Float
+  remainingAmount Float  @default(0)
+
+  saleDate DateTime @default(now())
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to cash flow
+  cashFlow   CashFlow @relation(fields: [cashFlowId], references: [id])
+  cashFlowId String
+
+  @@index([saleDate])
+  @@map("product_sales")
 }
 
 // ============================================
@@ -306,4 +423,20 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+// ============================================
+// INVOICE COUNTER (Race-condition safe)
+// ============================================
+
+model InvoiceCounter {
+  id         String   @id @default(cuid())
+  prefix     String // MTR, PRD, SPR
+  year       Int
+  month      Int
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([prefix, year, month])
+  @@map("invoice_counters")
 }

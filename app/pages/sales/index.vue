@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { IconCash, IconMotorbike, IconTool, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch } from '@tabler/icons-vue'
+import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch } from '@tabler/icons-vue'
 
-const activeTab = ref<'motorcycle' | 'sparepart'>('motorcycle')
+const activeTab = ref<'motorcycle' | 'product'>('motorcycle')
 const page = ref(1)
 const limit = ref(20)
 const startDate = ref('')
@@ -66,24 +66,25 @@ const pageTotalSales = computed(() => {
     // API returns 'sellingPrice' and 'currency'.
     // If mixed currency, simple sum is wrong. 
     // Assuming for now predominantly IDR or handled by display.
-    return salesData.reduce((sum: number, sale: any) => sum + (sale.currency === 'IDR' ? sale.sellingPrice : 0), 0)
+    return salesData.reduce((sum: number, sale: any) => sum + (sale.currency === 'IDR' ? sale.sellingPrice : sale.sellingPriceIdr || 0), 0)
   } else {
-    return salesData.reduce((sum: number, sale: any) => sum + sale.total, 0)
+    // For products, use sellingPriceIdr
+    return salesData.reduce((sum: number, sale: any) => sum + (sale.sellingPriceIdr || 0), 0)
   }
 })
 
 const pageTotalProfit = computed(() => {
   const salesData = data.value?.data
-  if (!salesData || activeTab.value !== 'motorcycle') return 0
-  return salesData.reduce((sum: number, sale: any) => sum + (sale.profit * (sale.currency === 'USD' ? (sale.exchangeRate || 16000) : 1)), 0)
+  if (!salesData) return 0
+  // Works for both motorcycle and product
+  return salesData.reduce((sum: number, sale: any) => sum + (sale.profit || 0), 0)
 })
 
 const pageTotalItems = computed(() => {
   const salesData = data.value?.data
-  if (!salesData || activeTab.value !== 'sparepart') return 0
-  return salesData.reduce((sum: number, sale: any) => {
-    return sum + (sale.items?.reduce((itemSum: number, item: any) => itemSum + item.quantity, 0) || 0)
-  }, 0)
+  if (!salesData || activeTab.value !== 'product') return 0
+  // ProductSale is per item, so count = number of sales
+  return salesData.length
 })
 
 // Type safe accessors to avoid union type errors
@@ -92,8 +93,8 @@ const motorcycleSales = computed(() => {
   return (data.value?.data || []) as any[]
 })
 
-const sparepartSales = computed(() => {
-  if (activeTab.value !== 'sparepart') return []
+const productSales = computed(() => {
+  if (activeTab.value !== 'product') return []
   return (data.value?.data || []) as any[]
 })
 </script>
@@ -104,7 +105,7 @@ const sparepartSales = computed(() => {
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
         <h1 class="text-3xl font-bold">Riwayat Penjualan</h1>
-        <p class="text-base-content/60">Daftar semua transaksi penjualan motor dan sparepart</p>
+        <p class="text-base-content/60">Daftar semua transaksi penjualan motor dan product</p>
       </div>
       
       <!-- Date Filters -->
@@ -159,11 +160,11 @@ const sparepartSales = computed(() => {
       <a 
         role="tab" 
         class="tab gap-2"
-        :class="{ 'tab-active': activeTab === 'sparepart' }"
-        @click="activeTab = 'sparepart'"
+        :class="{ 'tab-active': activeTab === 'product' }"
+        @click="activeTab = 'product'"
       >
-        <IconTool class="w-4 h-4" />
-        Sparepart
+        <IconBox class="w-4 h-4" />
+        Product
       </a>
     </div>
 
@@ -261,8 +262,8 @@ const sparepartSales = computed(() => {
       </div>
     </div>
 
-    <!-- Sparepart Sales Table -->
-    <div v-else-if="activeTab === 'sparepart' && sparepartSales.length" class="card bg-base-200 border border-base-300">
+    <!-- Product Sales Table -->
+    <div v-else-if="activeTab === 'product' && productSales.length" class="card bg-base-200 border border-base-300">
       <div class="card-body p-0">
         <div class="overflow-x-auto">
           <table class="table">
@@ -270,52 +271,37 @@ const sparepartSales = computed(() => {
               <tr class="bg-base-200/50">
                 <th>Tanggal</th>
                 <th>Invoice</th>
-                <th>Customer</th>
-                <th class="min-w-[200px]">Item</th>
+                <th>Pembeli</th>
+                <th>Product</th>
                 <th>Bayar</th>
-                <th class="text-right">Subtotal</th>
-                <th class="text-right">Diskon</th>
-                <th class="text-right">Total</th>
+                <th class="text-right">Harga Jual</th>
+                <th class="text-right">Profit</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="sale in sparepartSales" :key="sale.id" class="hover border-b border-base-200/50 last:border-0">
+              <tr v-for="sale in productSales" :key="sale.id" class="hover border-b border-base-200/50 last:border-0">
                 <td class="whitespace-nowrap">{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
                 <td>
-                  <NuxtLink 
-                    :to="`/sales/sparepart-receipt/${sale.id}`" 
-                    class="font-mono text-sm font-medium text-primary hover:underline"
-                    target="_blank"
-                  >
-                    {{ sale.invoiceNumber }}
+                  <span class="font-mono text-sm font-medium">{{ sale.invoiceNumber || '-' }}</span>
+                </td>
+                <td>
+                  <p class="font-medium">{{ sale.buyerName }}</p>
+                  <p class="text-xs text-base-content/60">{{ sale.buyerPhone || '-' }}</p>
+                </td>
+                <td>
+                  <NuxtLink :to="`/products/${sale.productId}`" class="link link-primary no-underline hover:underline font-medium">
+                    {{ sale.product?.name }}
                   </NuxtLink>
-                </td>
-                <td>
-                  <p class="font-medium">{{ sale.customerName || '-' }}</p>
-                  <p class="text-xs text-base-content/60">{{ sale.customerPhone || '-' }}</p>
-                </td>
-                <td>
-                  <div class="space-y-1">
-                    <div v-for="item in sale.items" :key="item.id" class="text-xs grid grid-cols-[1fr_auto] gap-2">
-                      <span class="font-medium truncate">{{ item.sparepart?.name }}</span>
-                      <span class="text-base-content/60">x{{ item.quantity }}</span>
-                    </div>
-                    <div v-if="sale.items?.length > 3" class="text-xs text-base-content/40 italic">
-                      +{{ sale.items.length - 3 }} item lainnya
-                    </div>
-                  </div>
+                  <p class="text-xs text-base-content/60">{{ sale.product?.category }}</p>
                 </td>
                 <td>
                   <span class="badge badge-sm badge-outline">{{ sale.paymentMethod }}</span>
                 </td>
-                <td class="text-right font-mono text-xs">
-                  {{ formatCurrency(sale.subtotal, sale.currency) }}
+                <td class="text-right font-mono">
+                  {{ formatCurrency(sale.sellingPriceIdr || sale.sellingPrice, 'IDR') }}
                 </td>
-                <td class="text-right font-mono text-xs text-error">
-                  {{ sale.discount > 0 ? '-' + formatCurrency(sale.discount, sale.currency) : '-' }}
-                </td>
-                <td class="text-right font-mono font-bold text-success">
-                  {{ formatCurrency(sale.total, sale.currency) }}
+                <td :class="['text-right font-mono font-bold', sale.profit >= 0 ? 'text-success' : 'text-error']">
+                  {{ formatCurrency(sale.profit, 'IDR') }}
                 </td>
               </tr>
             </tbody>
@@ -337,7 +323,7 @@ const sparepartSales = computed(() => {
           {{ 
             (startDate || endDate) 
               ? 'Tidak ada transaksi yang sesuai dengan filter tanggal yang dipilih.' 
-              : `Belum ada transaksi penjualan ${activeTab === 'motorcycle' ? 'motor' : 'sparepart'} tercatat.` 
+              : `Belum ada transaksi penjualan ${activeTab === 'motorcycle' ? 'motor' : 'product'} tercatat.` 
           }}
         </p>
         
@@ -346,10 +332,10 @@ const sparepartSales = computed(() => {
             Reset Filter
           </button>
           <NuxtLink 
-            :to="activeTab === 'motorcycle' ? '/motorcycles?status=AVAILABLE' : '/spareparts'" 
+            :to="activeTab === 'motorcycle' ? '/motorcycles?status=AVAILABLE' : '/products'" 
             class="btn btn-primary"
           >
-            {{ activeTab === 'motorcycle' ? 'Lihat Motor Tersedia' : 'Lihat Sparepart' }}
+            {{ activeTab === 'motorcycle' ? 'Lihat Motor Tersedia' : 'Lihat Product' }}
           </NuxtLink>
         </div>
       </div>

@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import { IconMotorbike, IconCurrencyDollar, IconCash, IconTrendingUp, IconPlus, IconCircleCheck, IconClipboardList, IconChartBar } from '@tabler/icons-vue'
+import { IconMotorbike, IconCurrencyDollar, IconCash, IconTrendingUp, IconPlus, IconCircleCheck, IconClipboardList, IconChartBar, IconReportAnalytics } from '@tabler/icons-vue'
 
 const { data: summary, pending: summaryPending } = await useFetch('/api/dashboard/summary')
 const { data: charts, pending: chartsPending } = await useFetch('/api/dashboard/charts')
+const { data: motorStats } = await useFetch('/api/reports/motor-stats')
+
+// Safe computed for motor stats to avoid undefined errors
+const safeMotorStats = computed(() => ({
+  ON_PROGRESS: motorStats.value?.stats?.ON_PROGRESS ?? 0,
+  AVAILABLE: motorStats.value?.stats?.AVAILABLE ?? 0,
+  SOLD: motorStats.value?.stats?.SOLD ?? 0,
+  total: motorStats.value?.total ?? 0,
+}))
 
 const formatCurrency = (value: number, currency: string = 'IDR') => {
   if (currency === 'IDR') {
@@ -127,34 +136,83 @@ const kpiCards = computed(() => [
         </div>
       </div>
 
-      <!-- Status Distribution -->
+      <!-- Status Distribution with Donut Chart -->
       <div class="card bg-base-200 border border-base-300">
         <div class="card-body">
           <h2 class="card-title">Status Motor</h2>
-          <div class="flex flex-col gap-4 mt-4">
-            <div v-for="item in charts?.statusDistribution" :key="item.status" class="flex items-center gap-4">
-              <div :class="[
-                'badge badge-lg',
-                item.status === 'INSPECTION' ? 'badge-warning' : '',
-                item.status === 'AVAILABLE' ? 'badge-success' : '',
-                item.status === 'SOLD' ? 'badge-info' : '',
-              ]">
-                {{ item.status }}
+          
+          <!-- Donut Chart -->
+          <div v-if="safeMotorStats.total > 0" class="flex flex-col md:flex-row items-center gap-6 mt-4">
+            <!-- SVG Donut -->
+            <div class="relative w-48 h-48">
+              <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                <!-- Background circle -->
+                <circle
+                  cx="50" cy="50" r="40"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="12"
+                  class="text-base-300"
+                />
+                <!-- On Progress -->
+                <circle
+                  v-if="safeMotorStats.ON_PROGRESS > 0"
+                  cx="50" cy="50" r="40"
+                  fill="none"
+                  stroke="#FBBD23"
+                  stroke-width="12"
+                  :stroke-dasharray="`${(safeMotorStats.ON_PROGRESS / safeMotorStats.total) * 251.2} 251.2`"
+                  stroke-dashoffset="0"
+                />
+                <!-- Available -->
+                <circle
+                  v-if="safeMotorStats.AVAILABLE > 0"
+                  cx="50" cy="50" r="40"
+                  fill="none"
+                  stroke="#36D399"
+                  stroke-width="12"
+                  :stroke-dasharray="`${(safeMotorStats.AVAILABLE / safeMotorStats.total) * 251.2} 251.2`"
+                  :stroke-dashoffset="`${-(safeMotorStats.ON_PROGRESS / safeMotorStats.total) * 251.2}`"
+                />
+                <!-- Sold -->
+                <circle
+                  v-if="safeMotorStats.SOLD > 0"
+                  cx="50" cy="50" r="40"
+                  fill="none"
+                  stroke="#3ABFF8"
+                  stroke-width="12"
+                  :stroke-dasharray="`${(safeMotorStats.SOLD / safeMotorStats.total) * 251.2} 251.2`"
+                  :stroke-dashoffset="`${-((safeMotorStats.ON_PROGRESS + safeMotorStats.AVAILABLE) / safeMotorStats.total) * 251.2}`"
+                />
+              </svg>
+              <!-- Center text -->
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-3xl font-bold">{{ safeMotorStats.total }}</span>
+                <span class="text-xs text-base-content/60">Total</span>
               </div>
-              <div class="flex-1">
-                <progress
-                  class="progress"
-                  :class="[
-                    item.status === 'INSPECTION' ? 'progress-warning' : '',
-                    item.status === 'AVAILABLE' ? 'progress-success' : '',
-                    item.status === 'SOLD' ? 'progress-info' : '',
-                  ]"
-                  :value="item.count"
-                  :max="summary?.motorcycles?.total || 1"
-                ></progress>
-              </div>
-              <span class="font-bold">{{ item.count }}</span>
             </div>
+            
+            <!-- Legend -->
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-3">
+                <span class="w-4 h-4 rounded-full bg-warning"></span>
+                <span>On Progress</span>
+                <span class="font-bold">{{ safeMotorStats.ON_PROGRESS }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="w-4 h-4 rounded-full bg-success"></span>
+                <span>Tersedia</span>
+                <span class="font-bold">{{ safeMotorStats.AVAILABLE }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="w-4 h-4 rounded-full bg-info"></span>
+                <span>Terjual</span>
+                <span class="font-bold">{{ safeMotorStats.SOLD }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center py-8 text-base-content/40">
+            Belum ada data motor
           </div>
         </div>
       </div>
@@ -229,6 +287,10 @@ const kpiCards = computed(() => [
           <NuxtLink to="/cashflow" class="btn btn-outline btn-warning">
             <IconChartBar class="w-5 h-5" :stroke-width="1.5" />
             Laporan Cash
+          </NuxtLink>
+          <NuxtLink to="/reports/profit-loss" class="btn btn-outline btn-secondary">
+            <IconReportAnalytics class="w-5 h-5" :stroke-width="1.5" />
+            Profit & Loss
           </NuxtLink>
         </div>
       </div>

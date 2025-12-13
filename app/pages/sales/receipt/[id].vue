@@ -184,7 +184,7 @@ const handleExportPDF = async () => {
     currentY += 4
     doc.setTextColor(30, 30, 30)
     doc.setFont('helvetica', 'bold')
-    doc.text(s.id, 25, currentY)
+    doc.text(s.invoiceNumber || s.id, 25, currentY)
     doc.text(formatDate(s.saleDate), pageWidth - 25, currentY, { align: 'right' })
     
     // Buyer Info Section - compact
@@ -342,41 +342,55 @@ const handleExportPDF = async () => {
       currentY += 12
     }
     
-    // Signature Section - compact (only seller with stamp on right)
+    // Signature Section - right aligned to match preview
     currentY += 5
+    
+    // Draw separator line for signature section
+    doc.setDrawColor(150, 150, 150)
+    doc.setLineWidth(0.5)
+    doc.line(20, currentY, pageWidth - 20, currentY)
+    
+    currentY += 10
+    
+    // Signature box positioned at right side
+    const signatureX = pageWidth - 80 // Right side position
     
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     doc.setTextColor(100, 100, 100)
-    doc.text('Penjual', pageWidth / 2, currentY, { align: 'center' })
+    doc.text('Penjual', signatureX + 20, currentY, { align: 'center' })
     
-    // Draw blue company stamp using logo - positioned at right end of line
+    // Draw blue company stamp using logo
     if (blueLogoDataUrl) {
       const stampMaxWidth = 35
       const stampMaxHeight = 35
-      // Use original img dimensions for ratio calculation
       const logoImg = new Image()
       logoImg.src = logoDataUrl!
       await new Promise((resolve) => { logoImg.onload = resolve })
       const stampRatio = Math.min(stampMaxWidth / logoImg.width, stampMaxHeight / logoImg.height)
       const stampWidth = logoImg.width * stampRatio
       const stampHeight = logoImg.height * stampRatio
-      // Position stamp at right end of signature line
-      const signatureLineEnd = pageWidth / 2 + 30
-      doc.addImage(blueLogoDataUrl, 'PNG', signatureLineEnd - (stampWidth / 2), currentY + 2, stampWidth, stampHeight)
+      // Position stamp in center of signature area
+      doc.addImage(blueLogoDataUrl, 'PNG', signatureX + 20 - (stampWidth / 2), currentY + 5, stampWidth, stampHeight)
     }
     
-    // Reset text color
-    doc.setTextColor(30, 30, 30)
+    currentY += 30
     
-    currentY += 25
-    doc.setDrawColor(150, 150, 150)
-    doc.line(pageWidth / 2 - 30, currentY, pageWidth / 2 + 30, currentY)
-    
-    currentY += 4
+    // Name: ADI MAS SUDARMA
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
-    doc.text('Digarasi', pageWidth / 2, currentY, { align: 'center' })
+    doc.setFontSize(10)
+    doc.text('ADI MAS SUDARMA', signatureX + 20, currentY, { align: 'center' })
+    
+    // Line separator
+    currentY += 2
+    doc.setDrawColor(100, 100, 100)
+    doc.line(signatureX, currentY, signatureX + 40, currentY)
+    
+    // Company: DIGARASI
+    currentY += 5
+    doc.setFont('helvetica', 'bold')
+    doc.text('DIGARASI', signatureX + 20, currentY, { align: 'center' })
     
     // Footer - fixed at bottom
     doc.setFontSize(7)
@@ -438,7 +452,7 @@ const handleExportPDF = async () => {
         <div class="grid grid-cols-2 gap-6 mb-8">
           <div>
             <p class="text-sm text-gray-600">No. Transaksi</p>
-            <p class="text-lg font-mono font-bold text-gray-800">{{ saleData.id }}</p>
+            <p class="text-lg font-mono font-bold text-gray-800">{{ saleData.invoiceNumber || saleData.id }}</p>
           </div>
           <div class="text-right">
             <p class="text-sm text-gray-600">Tanggal Penjualan</p>
@@ -541,22 +555,22 @@ const handleExportPDF = async () => {
         </div>
 
         <!-- Signature Section -->
-        <div class="flex justify-center mt-12 pt-8 border-t-2 border-gray-300">
+        <div class="flex justify-end mt-12 pt-8 border-t-2 border-gray-300">
           <div class="text-center relative w-60">
             <p class="text-gray-600 mb-4">Penjual</p>
             <!-- Blue logo stamp - positioned on the right -->
-            <div class="absolute right-0 top-8 h-20 flex items-center justify-center">
+            <div class="top-8 h-20 flex items-center justify-center">
               <img 
                 src="/logo.png" 
                 alt="Stamp" 
-                class="h-16 w-auto" 
+                class="h-24 w-auto" 
                 style="opacity: 0.25; filter: sepia(100%) saturate(300%) brightness(70%) hue-rotate(180deg);" 
                 onerror="this.style.display='none'" 
               />
             </div>
-            <div class="h-20"></div>
-            <div class="border-t-2 border-gray-400 pt-2 w-40 mx-auto">
-              <p class="font-semibold text-gray-800">ADI MAS SUDARMA</p>
+            <div class="h-2"></div>
+            <p class="font-semibold text-gray-800">ADI MAS SUDARMA</p>
+            <div class="border-t-2 border-gray-400 w-40 mx-auto">
               <p class="font-semibold text-gray-800">DIGARASI</p>
             </div>
           </div>

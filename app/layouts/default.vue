@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics } from '@tabler/icons-vue'
+import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconSettings } from '@tabler/icons-vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -8,11 +8,13 @@ const { alertState, closeAlert } = useAlert()
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: IconHome },
   { path: '/motorcycles', label: 'Motor', icon: IconMotorbike },
-  { path: '/spareparts', label: 'Spareparts', icon: IconPackage },
+  { path: '/products', label: 'Products', icon: IconBox },
+  // { path: '/spareparts', label: 'Spareparts', icon: IconPackage }, // Hidden - replaced by Products
   { path: '/sales', label: 'Penjualan', icon: IconCash },
   { path: '/reports', label: 'Laporan', icon: IconReportAnalytics },
   { path: '/cashflow', label: 'Cash Flow', icon: IconChartBar },
   { path: '/settings/suppliers', label: 'Suppliers', icon: IconTruck },
+  { path: '/account', label: 'Pengaturan', icon: IconSettings },
 ]
 
 const sidebarOpen = ref(true)
@@ -73,11 +75,9 @@ const logout = async () => {
         <!-- Logo -->
         <div class="flex items-center justify-center h-16 border-b border-base-300">
           <div class="flex items-center gap-2">
-            <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span class="text-xl font-bold text-primary-content">HD</span>
-            </div>
-            <span v-if="sidebarOpen" class="text-xl font-bold text-primary animate-fade-in">
-              Sales
+            <img src="/logo.png" alt="DIGARASI" class="w-10 h-10 object-contain" onerror="this.style.display='none'" />
+            <span v-if="sidebarOpen" class="text-xl font-bold text-base-content animate-fade-in">
+              DIGARASI
             </span>
           </div>
         </div>
@@ -132,9 +132,16 @@ const logout = async () => {
       <!-- Top Bar -->
       <header class="sticky top-0 z-30 bg-base-100/80 backdrop-blur-lg border-b border-base-300">
         <div class="flex items-center justify-between h-16 px-4">
-          <button @click="toggleSidebar" class="btn btn-ghost btn-square lg:flex">
-            <IconMenu2 class="w-6 h-6" :stroke-width="1.5" />
-          </button>
+          <div class="flex items-center gap-3">
+            <button @click="toggleSidebar" class="btn btn-ghost btn-square">
+              <IconMenu2 class="w-6 h-6" :stroke-width="1.5" />
+            </button>
+            <!-- Mobile/Tablet Logo -->
+            <div class="flex items-center gap-2 lg:hidden">
+              <img src="/logo.png" alt="DIGARASI" class="w-8 h-8 object-contain" onerror="this.style.display='none'" />
+              <span class="text-lg font-bold text-base-content">DIGARASI ID</span>
+            </div>
+          </div>
           
         <div class="flex items-center gap-4">
           <!-- Spacer or future elements -->

@@ -1,0 +1,23 @@
+[Unit]
+Description=HD Sales Application
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/hdsales
+EnvironmentFile=/var/www/hdsales/.env.production
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hdsales
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

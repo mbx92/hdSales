@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconArrowLeft, IconChevronDown, IconCash, IconTrash, IconPlus, IconInfoCircle, IconEdit, IconX } from '@tabler/icons-vue'
+import { IconArrowLeft, IconChevronDown, IconCash, IconTrash, IconPlus, IconInfoCircle, IconEdit, IconBox } from '@tabler/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -7,7 +7,7 @@ const { showError } = useAlert()
 const { showConfirm, confirmData, confirm, handleConfirm, handleCancel } = useConfirm()
 const id = route.params.id as string
 
-const { data: motorcycle, pending, refresh } = await useFetch(`/api/motorcycles/${id}`)
+const { data: product, pending, refresh } = await useFetch(`/api/products/${id}`)
 
 const showCostModal = ref(false)
 const showEditCostModal = ref(false)
@@ -16,7 +16,7 @@ const loading = ref(false)
 const editingCost = ref<any>(null)
 
 const costForm = ref({
-  component: 'SERVICE',
+  component: 'PURCHASE',
   description: '',
   amount: '',
   currency: 'IDR',
@@ -41,19 +41,14 @@ const sellForm = ref({
   buyerPhone: '',
   buyerAddress: '',
   paymentMethod: 'TRANSFER',
-  paidAmount: '',
   notes: '',
 })
 
 const costComponents = [
-  { value: 'INSPECTION', label: 'Inspeksi' },
   { value: 'PURCHASE', label: 'Pembelian' },
-  { value: 'TOWING', label: 'Derek / Towing' },
-  { value: 'DETAILING', label: 'Detailing' },
-  { value: 'SERVICE', label: 'Service / Tune-up' },
-  { value: 'IMPORT_FEES', label: 'Biaya Import' },
-  { value: 'STORAGE', label: 'Storage / Parkir' },
-  { value: 'DOCUMENTATION', label: 'Dokumentasi' },
+  { value: 'SHIPPING', label: 'Pengiriman' },
+  { value: 'CUSTOMS', label: 'Bea Cukai' },
+  { value: 'STORAGE', label: 'Storage' },
   { value: 'OTHER', label: 'Lainnya' },
 ]
 
@@ -73,7 +68,6 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'INSPECTION': return 'badge-warning'
     case 'ON_PROGRESS': return 'badge-warning'
     case 'AVAILABLE': return 'badge-success'
     case 'SOLD': return 'badge-info'
@@ -81,15 +75,25 @@ const getStatusBadge = (status: string) => {
   }
 }
 
-// Check if motorcycle has at least one cost
+const getCategoryBadge = (category: string) => {
+  switch (category) {
+    case 'SPAREPART': return 'badge-primary'
+    case 'ACCESSORIES': return 'badge-secondary'
+    case 'APPAREL': return 'badge-accent'
+    case 'CUSTOM': return 'badge-neutral'
+    default: return 'badge-ghost'
+  }
+}
+
+// Check if product has at least one cost
 const hasCosts = computed(() => {
-  return motorcycle.value?.costs && motorcycle.value.costs.length > 0
+  return product.value?.costs && product.value.costs.length > 0
 })
 
 const addCost = async () => {
   loading.value = true
   try {
-    await $fetch(`/api/motorcycles/${id}/costs`, {
+    await $fetch(`/api/products/${id}/costs`, {
       method: 'POST',
       body: {
         ...costForm.value,
@@ -98,7 +102,7 @@ const addCost = async () => {
     })
     showCostModal.value = false
     costForm.value = {
-      component: 'SERVICE',
+      component: 'PURCHASE',
       description: '',
       amount: '',
       currency: 'IDR',
@@ -108,62 +112,6 @@ const addCost = async () => {
     refresh()
   } catch (e: any) {
     showError(e.data?.message || 'Gagal menambah biaya')
-  } finally {
-    loading.value = false
-  }
-}
-
-const sellMotorcycle = async () => {
-  loading.value = true
-  try {
-    await $fetch(`/api/motorcycles/${id}/sell`, {
-      method: 'POST',
-      body: {
-        ...sellForm.value,
-        sellingPrice: parseFloat(sellForm.value.sellingPrice),
-        paidAmount: parseFloat(sellForm.value.paidAmount || sellForm.value.sellingPrice),
-      },
-    })
-    showSellModal.value = false
-    refresh()
-  } catch (e: any) {
-    showError(e.data?.message || 'Gagal menjual motor')
-  } finally {
-    loading.value = false
-  }
-}
-
-const updateStatus = async (newStatus: string) => {
-  loading.value = true
-  try {
-    await $fetch(`/api/motorcycles/${id}`, {
-      method: 'PATCH',
-      body: { status: newStatus },
-    })
-    refresh()
-  } catch (e: any) {
-    showError(e.data?.message || 'Gagal update status')
-  } finally {
-    loading.value = false
-  }
-}
-
-const deleteMotorcycle = async () => {
-  const confirmed = await confirm({
-    title: 'Hapus Motor',
-    message: 'Yakin ingin menghapus motor ini? Semua data biaya juga akan terhapus.',
-    confirmText: 'Ya, Hapus',
-    type: 'danger',
-  })
-  
-  if (!confirmed) return
-  
-  loading.value = true
-  try {
-    await $fetch(`/api/motorcycles/${id}`, { method: 'DELETE' })
-    router.push('/motorcycles')
-  } catch (e: any) {
-    showError(e.data?.message || 'Gagal menghapus motor')
   } finally {
     loading.value = false
   }
@@ -187,7 +135,7 @@ const updateCost = async () => {
   
   loading.value = true
   try {
-    await $fetch(`/api/motorcycles/${id}/costs/${editingCost.value.id}`, {
+    await $fetch(`/api/products/${id}/costs/${editingCost.value.id}`, {
       method: 'PATCH',
       body: {
         ...editCostForm.value,
@@ -216,12 +164,67 @@ const deleteCost = async (costId: string) => {
   
   loading.value = true
   try {
-    await $fetch(`/api/motorcycles/${id}/costs/${costId}`, {
+    await $fetch(`/api/products/${id}/costs/${costId}`, {
       method: 'DELETE',
     })
     refresh()
   } catch (e: any) {
     showError(e.data?.message || 'Gagal menghapus biaya')
+  } finally {
+    loading.value = false
+  }
+}
+
+const sellProduct = async () => {
+  loading.value = true
+  try {
+    await $fetch(`/api/products/${id}/sell`, {
+      method: 'POST',
+      body: {
+        ...sellForm.value,
+        sellingPrice: parseFloat(sellForm.value.sellingPrice),
+      },
+    })
+    showSellModal.value = false
+    refresh()
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal menjual product')
+  } finally {
+    loading.value = false
+  }
+}
+
+const updateStatus = async (newStatus: string) => {
+  loading.value = true
+  try {
+    await $fetch(`/api/products/${id}`, {
+      method: 'PATCH',
+      body: { status: newStatus },
+    })
+    refresh()
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal update status')
+  } finally {
+    loading.value = false
+  }
+}
+
+const deleteProduct = async () => {
+  const confirmed = await confirm({
+    title: 'Hapus Product',
+    message: 'Yakin ingin menghapus product ini? Semua data biaya juga akan terhapus.',
+    confirmText: 'Ya, Hapus',
+    type: 'danger',
+  })
+  
+  if (!confirmed) return
+  
+  loading.value = true
+  try {
+    await $fetch(`/api/products/${id}`, { method: 'DELETE' })
+    router.push('/products')
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal menghapus product')
   } finally {
     loading.value = false
   }
@@ -235,36 +238,36 @@ const deleteCost = async (costId: string) => {
       <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
 
-    <template v-else-if="motorcycle">
+    <template v-else-if="product">
       <!-- Header -->
       <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div class="flex items-start gap-4">
-          <NuxtLink to="/motorcycles" class="btn btn-ghost btn-square">
+          <NuxtLink to="/products" class="btn btn-ghost btn-square">
             <IconArrowLeft class="w-6 h-6" :stroke-width="1.5" />
           </NuxtLink>
           <div>
-            <div class="flex items-center gap-3">
-              <h1 class="text-3xl font-bold">
-                {{ motorcycle.model === 'Custom' && motorcycle.customModel ? motorcycle.customModel : motorcycle.model }}
-              </h1>
-              <div :class="['badge badge-lg', getStatusBadge(motorcycle.status)]">
-                {{ motorcycle.status }}
+            <div class="flex items-center gap-3 flex-wrap">
+              <h1 class="text-3xl font-bold">{{ product.name }}</h1>
+              <div :class="['badge', getCategoryBadge(product.category)]">
+                {{ product.customCategory || product.category }}
+              </div>
+              <div :class="['badge', getStatusBadge(product.status)]">
+                {{ product.status }}
               </div>
             </div>
-            <p class="text-base-content/60">{{ motorcycle.brand }} • {{ motorcycle.year }}</p>
-            <p class="font-mono text-sm mt-1">VIN: {{ motorcycle.vin }}</p>
+            <p class="text-base-content/60">{{ product.sku || 'No SKU' }} • {{ product.supplier || 'No Supplier' }}</p>
           </div>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
           <NuxtLink
-            :to="`/motorcycles/edit-${motorcycle.id}`"
+            :to="`/products/edit-${product.id}`"
             class="btn btn-outline"
           >
-            Edit Motor
+            Edit Product
           </NuxtLink>
 
-          <div v-if="motorcycle.status === 'ON_PROGRESS'" class="dropdown dropdown-end">
+          <div v-if="product.status === 'ON_PROGRESS'" class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-outline">
               Update Status
               <IconChevronDown class="w-4 h-4 ml-1" :stroke-width="1.5" />
@@ -274,19 +277,19 @@ const deleteCost = async (costId: string) => {
             </ul>
           </div>
 
-          <div v-if="motorcycle.status === 'AVAILABLE'" :class="{ 'tooltip tooltip-bottom': !hasCosts }" :data-tip="!hasCosts ? 'Tambahkan biaya terlebih dahulu sebelum menjual' : undefined">
+          <div v-if="product.status === 'AVAILABLE'" :class="{ 'tooltip tooltip-bottom': !hasCosts }" :data-tip="!hasCosts ? 'Tambahkan biaya terlebih dahulu sebelum menjual' : undefined">
             <button
               @click="showSellModal = true"
               class="btn btn-success"
               :disabled="!hasCosts"
             >
               <IconCash class="w-5 h-5 mr-1" :stroke-width="1.5" />
-              Jual Motor
+              Jual Product
             </button>
           </div>
 
           <button
-            @click="deleteMotorcycle"
+            @click="deleteProduct"
             class="btn btn-outline btn-error"
             :disabled="loading"
           >
@@ -300,28 +303,27 @@ const deleteCost = async (costId: string) => {
         <!-- Details Card -->
         <div class="card bg-base-200 border border-base-300">
           <div class="card-body">
-            <h2 class="card-title text-lg">Detail Motor</h2>
+            <h2 class="card-title text-lg">Detail Product</h2>
             <div class="space-y-3 mt-2">
               <div class="flex justify-between">
-                <span class="text-base-content/60">Warna</span>
-                <span>{{ motorcycle.color || '-' }}</span>
+                <span class="text-base-content/60">Kategori</span>
+                <span>{{ product.customCategory || product.category }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-base-content/60">Kilometer</span>
-                <span>{{ motorcycle.mileage?.toLocaleString() || '-' }} KM</span>
+                <span class="text-base-content/60">SKU</span>
+                <span class="font-mono">{{ product.sku || '-' }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-base-content/60">Kondisi</span>
-                <span>{{ motorcycle.condition }}</span>
+                <span class="text-base-content/60">Supplier</span>
+                <span>{{ product.supplier || '-' }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-base-content/60">Currency</span>
-                <span class="badge">{{ motorcycle.currency }}</span>
+                <span class="badge">{{ product.currency }}</span>
               </div>
             </div>
           </div>
         </div>
-
 
         <!-- Financial Card -->
         <div class="card bg-base-200 border border-base-300">
@@ -331,19 +333,19 @@ const deleteCost = async (costId: string) => {
               <div class="flex justify-between items-center">
                 <span class="text-base-content/60">HPP</span>
                 <span class="text-xl font-bold text-primary">
-                  {{ formatCurrency(motorcycle.totalCost, motorcycle.currency) }}
+                  {{ formatCurrency(product.totalCost, product.currency) }}
                 </span>
               </div>
-              <div v-if="motorcycle.sellingPrice" class="flex justify-between items-center">
+              <div v-if="product.sellingPrice" class="flex justify-between items-center">
                 <span class="text-base-content/60">Harga Jual</span>
                 <span class="text-xl font-bold text-success">
-                  {{ formatCurrency(motorcycle.sellingPrice, motorcycle.currency) }}
+                  {{ formatCurrency(product.sellingPrice, product.currency) }}
                 </span>
               </div>
-              <div v-if="motorcycle.profit" class="flex justify-between items-center">
+              <div v-if="product.profit" class="flex justify-between items-center">
                 <span class="text-base-content/60">Profit</span>
-                <span :class="['text-xl font-bold', motorcycle.profit >= 0 ? 'text-success' : 'text-error']">
-                  {{ formatCurrency(motorcycle.profit, motorcycle.currency) }}
+                <span :class="['text-xl font-bold', product.profit >= 0 ? 'text-success' : 'text-error']">
+                  {{ formatCurrency(product.profit, product.currency) }}
                 </span>
               </div>
             </div>
@@ -351,11 +353,19 @@ const deleteCost = async (costId: string) => {
         </div>
       </div>
 
+      <!-- Description -->
+      <div v-if="product.description" class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title text-lg">Deskripsi</h2>
+          <p class="whitespace-pre-wrap">{{ product.description }}</p>
+        </div>
+      </div>
+
       <!-- Notes -->
-      <div v-if="motorcycle.notes" class="card bg-base-200 border border-base-300">
+      <div v-if="product.notes" class="card bg-base-200 border border-base-300">
         <div class="card-body">
           <h2 class="card-title text-lg">Catatan</h2>
-          <p class="whitespace-pre-wrap">{{ motorcycle.notes }}</p>
+          <p class="whitespace-pre-wrap">{{ product.notes }}</p>
         </div>
       </div>
 
@@ -365,7 +375,7 @@ const deleteCost = async (costId: string) => {
           <div class="flex items-center justify-between mb-4">
             <h2 class="card-title text-lg">
               Riwayat Biaya
-              <span class="badge badge-primary">{{ motorcycle.costs?.length || 0 }}</span>
+              <span class="badge badge-primary">{{ product.costs?.length || 0 }}</span>
             </h2>
             <button
               @click="showCostModal = true"
@@ -376,7 +386,7 @@ const deleteCost = async (costId: string) => {
             </button>
           </div>
 
-          <div v-if="motorcycle.costs?.length" class="overflow-x-auto">
+          <div v-if="product.costs?.length" class="overflow-x-auto">
             <table class="table">
               <thead>
                 <tr>
@@ -389,7 +399,7 @@ const deleteCost = async (costId: string) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="cost in motorcycle.costs" :key="cost.id">
+                <tr v-for="cost in product.costs" :key="cost.id">
                   <td>{{ new Date(cost.transactionDate).toLocaleDateString('id-ID') }}</td>
                   <td>
                     <span class="badge badge-outline">{{ cost.component }}</span>
@@ -423,7 +433,7 @@ const deleteCost = async (costId: string) => {
                 <tr>
                   <th colspan="5">Total HPP</th>
                   <th class="text-right text-primary text-lg">
-                    {{ formatCurrency(motorcycle.totalCost, motorcycle.currency) }}
+                    {{ formatCurrency(product.totalCost, product.currency) }}
                   </th>
                 </tr>
               </tfoot>
@@ -436,26 +446,26 @@ const deleteCost = async (costId: string) => {
       </div>
 
       <!-- Sale Transaction -->
-      <div v-if="motorcycle.saleTransaction" class="card bg-success/10 border border-success/20">
+      <div v-if="product.saleTransaction" class="card bg-success/10 border border-success/20">
         <div class="card-body">
           <h2 class="card-title text-lg text-success">Transaksi Penjualan</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <div>
               <span class="text-base-content/60">Pembeli</span>
-              <p class="font-bold">{{ motorcycle.saleTransaction.buyerName }}</p>
-              <p class="text-sm">{{ motorcycle.saleTransaction.buyerPhone }}</p>
+              <p class="font-bold">{{ product.saleTransaction.buyerName }}</p>
+              <p class="text-sm">{{ product.saleTransaction.buyerPhone }}</p>
             </div>
             <div>
               <span class="text-base-content/60">Tanggal Jual</span>
-              <p class="font-bold">{{ new Date(motorcycle.saleTransaction.saleDate).toLocaleDateString('id-ID') }}</p>
-              <p class="text-sm">{{ motorcycle.saleTransaction.paymentMethod }}</p>
+              <p class="font-bold">{{ new Date(product.saleTransaction.saleDate).toLocaleDateString('id-ID') }}</p>
+              <p class="text-sm">{{ product.saleTransaction.paymentMethod }}</p>
             </div>
             <div>
               <span class="text-base-content/60">Profit</span>
-              <p :class="['text-2xl font-bold', motorcycle.saleTransaction.profit >= 0 ? 'text-success' : 'text-error']">
-                {{ formatCurrency(motorcycle.saleTransaction.profit, motorcycle.saleTransaction.currency) }}
+              <p :class="['text-2xl font-bold', product.saleTransaction.profit >= 0 ? 'text-success' : 'text-error']">
+                {{ formatCurrency(product.saleTransaction.profit, product.saleTransaction.currency) }}
               </p>
-              <p class="text-sm">Margin: {{ motorcycle.saleTransaction.profitMargin?.toFixed(1) }}%</p>
+              <p class="text-sm">Margin: {{ product.saleTransaction.profitMargin?.toFixed(1) }}%</p>
             </div>
           </div>
         </div>
@@ -572,8 +582,8 @@ const deleteCost = async (costId: string) => {
     <Teleport to="body">
       <dialog :class="['modal', showSellModal && 'modal-open']">
         <div class="modal-box bg-base-200 max-w-2xl">
-          <h3 class="font-bold text-lg mb-4">Jual Motor</h3>
-          <form @submit.prevent="sellMotorcycle" class="space-y-4">
+          <h3 class="font-bold text-lg mb-4">Jual Product</h3>
+          <form @submit.prevent="sellProduct" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <div class="form-control">
                 <label class="label"><span class="label-text">Harga Jual *</span></label>
@@ -598,18 +608,17 @@ const deleteCost = async (costId: string) => {
                 <select v-model="sellForm.paymentMethod" class="select select-bordered bg-base-300">
                   <option value="CASH">Cash</option>
                   <option value="TRANSFER">Transfer</option>
-                  <option value="INSTALLMENT">Cicilan</option>
                 </select>
               </div>
             </div>
             <div class="alert alert-info">
               <IconInfoCircle class="w-6 h-6 shrink-0" :stroke-width="1.5" />
               <div>
-                <p>HPP Motor: <strong>{{ formatCurrency(motorcycle?.totalCost || 0, motorcycle?.currency) }}</strong></p>
+                <p>HPP Product: <strong>{{ formatCurrency(product?.totalCost || 0, product?.currency) }}</strong></p>
                 <p v-if="sellForm.sellingPrice">
                   Estimasi Profit: 
-                  <strong :class="parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0) >= 0 ? 'text-success' : 'text-error'">
-                    {{ formatCurrency(parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0), sellForm.currency) }}
+                  <strong :class="parseFloat(sellForm.sellingPrice) - (product?.totalCost || 0) >= 0 ? 'text-success' : 'text-error'">
+                    {{ formatCurrency(parseFloat(sellForm.sellingPrice) - (product?.totalCost || 0), sellForm.currency) }}
                   </strong>
                 </p>
               </div>
