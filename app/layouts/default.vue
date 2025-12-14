@@ -9,7 +9,7 @@ const menuItems = [
   { path: '/', label: 'Dashboard', icon: IconHome },
   { path: '/motorcycles', label: 'Motor', icon: IconMotorbike },
   { path: '/products', label: 'Products', icon: IconBox },
-  // { path: '/spareparts', label: 'Spareparts', icon: IconPackage }, // Hidden - replaced by Products
+  { path: '/spareparts', label: 'Services & Spareparts', icon: IconPackage },
   { path: '/sales', label: 'Penjualan', icon: IconCash },
   { path: '/reports', label: 'Laporan', icon: IconReportAnalytics },
   { path: '/cashflow', label: 'Cash Flow', icon: IconChartBar },

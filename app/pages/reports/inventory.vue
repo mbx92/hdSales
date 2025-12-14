@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconBox, IconMotorbike, IconBuildingWarehouse, IconCurrencyDollar, IconFileSpreadsheet, IconFileTypePdf } from '@tabler/icons-vue'
+import { IconBox, IconMotorbike, IconBuildingWarehouse, IconCurrencyDollar, IconFileSpreadsheet, IconFileTypePdf, IconPackage } from '@tabler/icons-vue'
 import { useExport } from '~/composables/useExport'
 
 const { exportInventoryToExcel, exportInventoryToPDF } = useExport()
@@ -162,6 +162,20 @@ const handleExportPDF = async () => {
                         </div>
                     </div>
                 </div>
+                <div class="card bg-base-200 border border-base-300">
+                    <div class="card-body py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-3 rounded-lg bg-info/20">
+                                <IconPackage class="w-6 h-6 text-info" :stroke-width="1.5" />
+                            </div>
+                            <div>
+                                <p class="text-xs text-base-content/60">Sparepart</p>
+                                <p class="text-xl font-bold">{{ report.summary.sparepart?.count || 0 }}</p>
+                                <p class="text-xs text-base-content/40">{{ formatCurrency(report.summary.sparepart?.totalValue || 0) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Motorcycle Table -->
@@ -274,6 +288,60 @@ const handleExportPDF = async () => {
 
                     <div v-else class="text-center py-8 text-base-content/40">
                         Tidak ada product dalam inventory
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spareparts Table -->
+            <div v-if="report.spareparts?.length" class="card bg-base-200 border border-base-300">
+                <div class="card-body">
+                    <div class="flex items-center gap-2 mb-4">
+                        <IconPackage class="w-5 h-5" :stroke-width="1.5" />
+                        <h2 class="card-title text-lg">Inventory Spareparts</h2>
+                        <span class="badge badge-info">{{ report.spareparts.length }}</span>
+                        <span v-if="report.summary.sparepart?.lowStock" class="badge badge-warning">{{ report.summary.sparepart.lowStock }} Stok Rendah</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nama</th>
+                                    <th>SKU</th>
+                                    <th>Kategori</th>
+                                    <th class="text-right">Stok</th>
+                                    <th class="text-right">Harga Beli</th>
+                                    <th class="text-right">Total Nilai</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="s in report.spareparts" :key="s.id" class="hover">
+                                    <td>
+                                        <NuxtLink :to="`/spareparts/${s.id}`" class="link link-hover font-medium">
+                                            {{ s.name }}
+                                        </NuxtLink>
+                                        <div v-if="s.brand" class="text-xs text-base-content/60">{{ s.brand }}</div>
+                                    </td>
+                                    <td class="font-mono text-xs">{{ s.sku }}</td>
+                                    <td>
+                                        <span class="badge badge-sm badge-outline">{{ s.category }}</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span :class="['font-bold', s.stock <= s.minStock ? 'text-warning' : '']">{{ s.stock }}</span>
+                                    </td>
+                                    <td class="text-right font-mono">{{ formatCurrency(s.purchasePrice) }}</td>
+                                    <td class="text-right font-mono font-bold">{{ formatCurrency(s.totalValue) }}</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-base-300/50">
+                                    <td colspan="3" class="font-bold">Total</td>
+                                    <td class="text-right font-bold">{{ report.summary.sparepart?.totalStock || 0 }}</td>
+                                    <td></td>
+                                    <td class="text-right font-mono font-bold">{{ formatCurrency(report.summary.sparepart?.totalValue || 0) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
                 </div>
             </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch } from '@tabler/icons-vue'
+import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt } from '@tabler/icons-vue'
 
-const activeTab = ref<'motorcycle' | 'product'>('motorcycle')
+const activeTab = ref<'motorcycle' | 'product' | 'sparepart'>('motorcycle')
 const page = ref(1)
 const limit = ref(20)
 const startDate = ref('')
@@ -83,8 +83,13 @@ const pageTotalProfit = computed(() => {
 const pageTotalItems = computed(() => {
   const salesData = data.value?.data
   if (!salesData || activeTab.value !== 'product') return 0
-  // ProductSale is per item, so count = number of sales
   return salesData.length
+})
+
+const pageTotalSparepartOmset = computed(() => {
+  if (activeTab.value !== 'sparepart') return 0
+  const salesData = sparepartData.value?.data || []
+  return salesData.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0)
 })
 
 // Type safe accessors to avoid union type errors
@@ -97,6 +102,32 @@ const productSales = computed(() => {
   if (activeTab.value !== 'product') return []
   return (data.value?.data || []) as any[]
 })
+
+// Sparepart sales - separate fetch
+const { data: sparepartData, pending: sparepartPending, refresh: refreshSpareparts } = await useFetch('/api/sparepart-sales', {
+  query: computed(() => ({
+    page: page.value,
+    limit: limit.value,
+    startDate: startDate.value || undefined,
+    endDate: endDate.value || undefined
+  })),
+  watch: [page, startDate, endDate]
+})
+
+const sparepartSales = computed(() => {
+  return (sparepartData.value?.data || []) as any[]
+})
+
+// Print modal for sparepart
+const showPrintModal = ref(false)
+const selectedSaleId = ref('')
+const selectedInvoiceNumber = ref('')
+
+const openPrintModal = (saleId: string, invoiceNumber: string) => {
+  selectedSaleId.value = saleId
+  selectedInvoiceNumber.value = invoiceNumber
+  showPrintModal.value = true
+}
 </script>
 
 <template>
@@ -166,6 +197,15 @@ const productSales = computed(() => {
         <IconBox class="w-4 h-4" />
         Product
       </a>
+      <a 
+        role="tab" 
+        class="tab gap-2"
+        :class="{ 'tab-active': activeTab === 'sparepart' }"
+        @click="activeTab = 'sparepart'"
+      >
+        <IconPackage class="w-4 h-4" />
+        Service & Sparepart
+      </a>
     </div>
 
     <!-- Summary Cards (Current Page) -->
@@ -174,7 +214,9 @@ const productSales = computed(() => {
         <div class="card-body p-4">
           <h3 class="text-sm font-medium text-base-content/60">Total Transaksi</h3>
           <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-bold text-primary">{{ data?.meta?.total || 0 }}</p>
+            <p class="text-2xl font-bold text-primary">
+              {{ activeTab === 'sparepart' ? (sparepartData?.meta?.total || 0) : (data?.meta?.total || 0) }}
+            </p>
             <span class="text-xs text-base-content/40">transaksi</span>
           </div>
         </div>
@@ -182,7 +224,9 @@ const productSales = computed(() => {
       <div class="card bg-base-200 border border-base-300">
         <div class="card-body p-4">
           <h3 class="text-sm font-medium text-base-content/60">Omset (Halaman Ini)</h3>
-          <p class="text-2xl font-bold text-success">{{ formatCurrency(pageTotalSales) }}</p>
+          <p class="text-2xl font-bold text-success">
+            {{ formatCurrency(activeTab === 'sparepart' ? pageTotalSparepartOmset : pageTotalSales) }}
+          </p>
         </div>
       </div>
       <div v-if="activeTab === 'motorcycle'" class="card bg-base-200 border border-base-300">
@@ -191,6 +235,12 @@ const productSales = computed(() => {
           <p :class="['text-2xl font-bold', pageTotalProfit >= 0 ? 'text-success' : 'text-error']">
             {{ formatCurrency(pageTotalProfit) }}
           </p>
+        </div>
+      </div>
+      <div v-else-if="activeTab === 'sparepart'" class="card bg-base-200 border border-base-300">
+        <div class="card-body p-4">
+          <h3 class="text-sm font-medium text-base-content/60">Jumlah Item Terjual</h3>
+          <p class="text-2xl font-bold text-info">{{ sparepartSales.reduce((sum, s) => sum + (s.items?.length || 0), 0) }}</p>
         </div>
       </div>
       <div v-else class="card bg-base-200 border border-base-300">
@@ -310,6 +360,60 @@ const productSales = computed(() => {
       </div>
     </div>
 
+    <!-- Sparepart Sales Table -->
+    <div v-else-if="activeTab === 'sparepart'" class="card bg-base-200 border border-base-300">
+      <div class="card-body p-0">
+        <div v-if="sparepartPending" class="flex items-center justify-center py-12">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+        <div v-else-if="sparepartSales.length" class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr class="bg-base-200/50">
+                <th>Tanggal</th>
+                <th>Invoice</th>
+                <th>Customer</th>
+                <th>Items</th>
+                <th>Bayar</th>
+                <th class="text-right">Total</th>
+                <th class="text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sale in sparepartSales" :key="sale.id" class="hover border-b border-base-200/50 last:border-0">
+                <td class="whitespace-nowrap">{{ new Date(sale.saleDate).toLocaleDateString('id-ID') }}</td>
+                <td>
+                  <span class="font-mono text-sm font-medium">{{ sale.invoiceNumber }}</span>
+                </td>
+                <td>
+                  <p class="font-medium">{{ sale.customerName || '-' }}</p>
+                  <p class="text-xs text-base-content/60">{{ sale.customerPhone || '-' }}</p>
+                </td>
+                <td>
+                  <span class="badge badge-sm badge-info">{{ sale.items?.length || 0 }} item</span>
+                </td>
+                <td>
+                  <span class="badge badge-sm badge-outline">{{ sale.paymentMethod }}</span>
+                </td>
+                <td class="text-right font-mono font-bold text-success">
+                  {{ formatCurrency(sale.total, 'IDR') }}
+                </td>
+                <td class="text-center">
+                  <button @click="openPrintModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square" title="Print">
+                    <IconPrinter class="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="py-12 text-center text-base-content/60">
+          <IconPackage class="w-16 h-16 mx-auto opacity-20 mb-4" />
+          <p>Belum ada transaksi service & sparepart</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Empty State -->
     <div v-else class="card bg-base-200 border border-base-300">
       <div class="card-body items-center text-center py-12">
@@ -363,6 +467,38 @@ const productSales = computed(() => {
         </button>
       </div>
     </div>
+
+    <!-- Print Modal for Sparepart Sales -->
+    <dialog :class="['modal', showPrintModal && 'modal-open']">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-2">Cetak Dokumen</h3>
+        <p class="text-sm text-base-content/60 mb-4">Invoice: {{ selectedInvoiceNumber }}</p>
+        <div class="flex flex-col gap-3">
+          <NuxtLink 
+            :to="`/sales/sparepart-receipt/${selectedSaleId}`" 
+            class="btn btn-secondary gap-2"
+            target="_blank"
+            @click="showPrintModal = false"
+          >
+            <IconDownload class="w-5 h-5" />
+            E-Receipt (Struk)
+          </NuxtLink>
+          <NuxtLink 
+            :to="`/sales/sparepart-invoice/${selectedSaleId}`" 
+            class="btn btn-accent gap-2"
+            target="_blank"
+            @click="showPrintModal = false"
+          >
+            <IconReceipt class="w-5 h-5" />
+            Invoice (A4)
+          </NuxtLink>
+        </div>
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="showPrintModal = false">Batal</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop" @click="showPrintModal = false"></form>
+    </dialog>
   </div>
 </template>
 

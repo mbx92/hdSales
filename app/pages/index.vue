@@ -70,7 +70,7 @@ const kpiCards = computed(() => [
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold">Dashboard</h1>
-        <p class="text-base-content/60">Selamat datang di HD Sales</p>
+        <p class="text-base-content/60">Selamat datang di DIGARASI ID</p>
       </div>
       <div class="flex gap-2">
         <NuxtLink to="/motorcycles/create" class="btn btn-primary">

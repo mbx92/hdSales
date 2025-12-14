@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt } from '@tabler/icons-vue'
 
 const router = useRouter()
 const { showError, showWarning } = useAlert()
@@ -15,6 +15,7 @@ const paymentMethod = ref('CASH')
 const discount = ref(0)
 const loading = ref(false)
 const showSuccessModal = ref(false)
+const showCheckoutModal = ref(false)
 const lastInvoice = ref('')
 const lastSaleId = ref('')
 
@@ -27,12 +28,20 @@ const filteredProducts = computed(() => {
   ).slice(0, 5) || [] // Limit 5 suggestions
 })
 
+// Filter products for carousel - include SERVICE items
+const availableProducts = computed(() => {
+  return products.value?.filter((p: any) => p.stock > 0 || p.category === 'SERVICE').slice(0, 12) || []
+})
+
 const addToCart = (product: any) => {
-  if (product.stock <= 0) return showWarning('Stok habis!')
+  // Skip stock check for SERVICE category
+  const isService = product.category === 'SERVICE'
+  
+  if (!isService && product.stock <= 0) return showWarning('Stok habis!')
   
   const existing = cart.value.find(item => item.id === product.id)
   if (existing) {
-    if (existing.quantity >= product.stock) return showWarning('Stok tidak cukup!')
+    if (!isService && existing.quantity >= product.stock) return showWarning('Stok tidak cukup!')
     existing.quantity++
   } else {
     cart.value.push({
@@ -41,7 +50,8 @@ const addToCart = (product: any) => {
       sku: product.sku,
       price: product.sellingPrice,
       quantity: 1,
-      maxStock: product.stock
+      maxStock: isService ? 999 : product.stock,
+      isService
     })
   }
   search.value = '' // Clear search
@@ -58,6 +68,11 @@ const subtotal = computed(() => {
 const total = computed(() => {
   return Math.max(0, subtotal.value - discount.value)
 })
+
+const openCheckout = () => {
+  if (cart.value.length === 0) return showWarning('Keranjang kosong!')
+  showCheckoutModal.value = true
+}
 
 const processSale = async () => {
   if (cart.value.length === 0) return
@@ -82,6 +97,7 @@ const processSale = async () => {
     
     lastInvoice.value = res.invoiceNumber
     lastSaleId.value = res.id
+    showCheckoutModal.value = false
     showSuccessModal.value = true
     
     // Reset cart but keep page open for next sale
@@ -106,8 +122,8 @@ const formatCurrency = (value: number) => {
 </script>
 
 <template>
-  <div class="h-[calc(100vh-6rem)] flex flex-col md:flex-row gap-6">
-    <!-- Left Panel: Product Search & Cart -->
+  <div class="h-[calc(100vh-6rem)] flex flex-col md:flex-row gap-4">
+    <!-- Left Panel: Search & Products -->
     <div class="flex-1 flex flex-col gap-4 h-full">
       
       <!-- Search Bar -->
@@ -136,7 +152,13 @@ const formatCurrency = (value: number) => {
                   <a @click="addToCart(p)" class="flex justify-between items-center py-3">
                     <div>
                       <div class="font-bold">{{ p.name }}</div>
-                      <div class="text-xs opacity-60">{{ p.sku }} • Stok: {{ p.stock }}</div>
+                      <div class="text-xs opacity-60">
+                        {{ p.sku }} • 
+                        <span v-if="p.category === 'SERVICE'" class="text-info">
+                          <IconInfinity class="w-3 h-3 inline" /> Unlimited
+                        </span>
+                        <span v-else>Stok: {{ p.stock }}</span>
+                      </div>
                     </div>
                     <div class="font-mono font-bold">{{ formatCurrency(p.sellingPrice) }}</div>
                   </a>
@@ -147,142 +169,155 @@ const formatCurrency = (value: number) => {
         </div>
       </div>
 
-      <!-- Product Carousel -->
-      <div class="card bg-base-200 border border-base-300 flex-shrink-0">
-        <div class="card-body p-3">
-          <div class="flex items-center justify-between mb-2">
+      <!-- Product Grid -->
+      <div class="card bg-base-200 border border-base-300 flex-1 overflow-hidden">
+        <div class="card-body p-4">
+          <div class="flex items-center justify-between mb-3">
             <span class="font-bold text-sm flex items-center gap-2">
-              <IconPackage class="w-4 h-4" /> Produk Tersedia
+              <IconPackage class="w-4 h-4" /> Produk & Layanan Tersedia
             </span>
             <span class="text-xs opacity-60">Klik untuk tambah ke keranjang</span>
           </div>
-          <div class="carousel carousel-center gap-3 w-full py-2">
-            <div 
-              v-for="product in products?.filter((p: any) => p.stock > 0).slice(0, 12)" 
-              :key="product.id" 
-              class="carousel-item"
-            >
-              <button 
-                @click="addToCart(product)" 
-                class="card bg-base-100 border border-base-300 w-32 hover:border-primary hover:shadow-lg transition-all cursor-pointer"
-                :class="{ 'opacity-50': product.stock <= 0 }"
-                :disabled="product.stock <= 0"
-              >
-                <div class="card-body p-3 items-center text-center">
-                  <div class="avatar placeholder mb-1">
-                    <div class="bg-primary/10 text-primary rounded w-10 h-10">
-                      <span class="text-xs font-bold">{{ product.sku.slice(-3) }}</span>
-                    </div>
-                  </div>
-                  <p class="text-xs font-semibold line-clamp-2 min-h-[2rem]">{{ product.name }}</p>
-                  <p class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice) }}</p>
-                  <p class="text-xs opacity-60">Stok: {{ product.stock }}</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cart Items -->
-      <div class="card bg-base-200 border border-base-300 flex-1 overflow-hidden">
-        <div class="card-body p-0 flex flex-col h-full">
-          <div class="p-4 border-b border-base-300 font-bold flex items-center gap-2">
-            <IconShoppingCart class="w-5 h-5" /> Keranjang Belanja
-          </div>
-          
-          <div class="flex-1 overflow-y-auto p-4 space-y-2">
-            <div v-if="cart.length === 0" class="text-center py-12 opacity-50">
-              Keranjang kosong
-            </div>
-            
-            <div v-for="(item, index) in cart" :key="index" class="flex items-center justify-between p-3 bg-base-100/50 rounded-lg border border-base-300/50">
-              <div class="flex-1">
-                <div class="font-bold">{{ item.name }}</div>
-                <div class="text-xs opacity-60">{{ item.sku }}</div>
-              </div>
-              <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                  <button @click="item.quantity > 1 ? item.quantity-- : removeFromCart(index)" class="btn btn-xs btn-square">-</button>
-                  <span class="w-8 text-center font-bold">{{ item.quantity }}</span>
-                  <button @click="item.quantity < item.maxStock && item.quantity++" class="btn btn-xs btn-square" :disabled="item.quantity >= item.maxStock">+</button>
-                </div>
-                <div class="text-right w-24">
-                  <div class="font-bold">{{ formatCurrency(item.price * item.quantity) }}</div>
-                  <div class="text-xs opacity-60">@ {{ formatCurrency(item.price) }}</div>
-                </div>
-                <button @click="removeFromCart(index)" class="btn btn-ghost btn-xs text-error">
-                  <IconTrash class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Panel: Checkout -->
-    <div class="w-full md:w-96 flex flex-col gap-4">
-      <div class="card bg-base-200 border border-base-300 h-full">
-        <div class="card-body">
-          <h2 class="card-title mb-6">Informasi & Pembayaran</h2>
-          
-          <div class="space-y-4 flex-1">
-            <div class="form-control">
-              <label class="label"><span class="label-text">Nama Pembeli</span></label>
-              <input v-model="customerName" type="text" class="input input-bordered" placeholder="Nama Customer" />
-            </div>
-            <div class="form-control">
-              <label class="label"><span class="label-text">No. Telepon</span></label>
-              <input v-model="customerPhone" type="tel" class="input input-bordered" placeholder="08..." />
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="flex justify-between items-center text-sm">
-              <span>Subtotal</span>
-              <span class="font-mono">{{ formatCurrency(subtotal) }}</span>
-            </div>
-            
-            <div class="form-control">
-              <label class="label"><span class="label-text">Diskon</span></label>
-              <input v-model="discount" type="number" class="input input-bordered input-sm" min="0" />
-            </div>
-            
-            <div class="form-control">
-              <label class="label"><span class="label-text">Metode Bayar</span></label>
-              <select v-model="paymentMethod" class="select select-bordered select-sm">
-                <option value="CASH">Cash</option>
-                <option value="TRANSFER">Transfer</option>
-                <option value="CARD">Kartu Debit/Kredit</option>
-                <option value="QRIS">QRIS</option>
-              </select>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="flex justify-between items-center text-xl font-bold">
-              <span>Total</span>
-              <span class="text-primary">{{ formatCurrency(total) }}</span>
-            </div>
-          </div>
-
-          <div class="mt-6">
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 overflow-y-auto">
             <button 
-              @click="processSale" 
-              class="btn btn-primary w-full btn-lg"
-              :disabled="loading || cart.length === 0"
+              v-for="product in availableProducts" 
+              :key="product.id" 
+              @click="addToCart(product)"
+              class="card bg-base-100 border border-base-300 hover:border-primary hover:shadow-lg transition-all cursor-pointer"
             >
-              <span v-if="loading" class="loading loading-spinner"></span>
-              <template v-else>
-                Bayar & Cetak Struk
-                <IconCheck class="w-6 h-6 ml-2" />
-              </template>
+              <div class="card-body p-3 items-center text-center">
+                <div class="avatar placeholder mb-1">
+                  <div :class="['rounded w-10 h-10', product.category === 'SERVICE' ? 'bg-info/10 text-info' : 'bg-primary/10 text-primary']">
+                    <span class="text-xs font-bold">{{ product.sku.slice(-3) }}</span>
+                  </div>
+                </div>
+                <p class="text-xs font-semibold line-clamp-2 min-h-[2rem]">{{ product.name }}</p>
+                <p class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice) }}</p>
+                <p v-if="product.category === 'SERVICE'" class="text-xs text-info flex items-center gap-1">
+                  <IconInfinity class="w-3 h-3" /> Jasa
+                </p>
+                <p v-else class="text-xs opacity-60">Stok: {{ product.stock }}</p>
+              </div>
             </button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Right Panel: Cart -->
+    <div class="w-full md:w-80 lg:w-96 flex flex-col gap-4">
+      <div class="card bg-base-200 border border-base-300 h-full flex flex-col">
+        <div class="p-4 border-b border-base-300 font-bold flex items-center gap-2">
+          <IconShoppingCart class="w-5 h-5" /> Keranjang Belanja
+          <span v-if="cart.length" class="badge badge-primary badge-sm">{{ cart.length }}</span>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-2">
+          <div v-if="cart.length === 0" class="text-center py-12 opacity-50">
+            Keranjang kosong
+          </div>
+          
+          <div v-for="(item, index) in cart" :key="index" class="flex items-center justify-between p-3 bg-base-100/50 rounded-lg border border-base-300/50">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-sm truncate">{{ item.name }}</div>
+              <div class="text-xs opacity-60">{{ item.sku }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
+                <button @click="item.quantity > 1 ? item.quantity-- : removeFromCart(index)" class="btn btn-xs btn-square">-</button>
+                <span class="w-6 text-center font-bold text-sm">{{ item.quantity }}</span>
+                <button @click="item.quantity < item.maxStock && item.quantity++" class="btn btn-xs btn-square" :disabled="item.quantity >= item.maxStock">+</button>
+              </div>
+              <div class="text-right w-20">
+                <div class="font-bold text-sm">{{ formatCurrency(item.price * item.quantity) }}</div>
+              </div>
+              <button @click="removeFromCart(index)" class="btn btn-ghost btn-xs text-error">
+                <IconTrash class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cart Footer -->
+        <div class="p-4 border-t border-base-300 space-y-3">
+          <div class="flex justify-between items-center text-sm">
+            <span>Subtotal ({{ cart.reduce((sum, item) => sum + item.quantity, 0) }} item)</span>
+            <span class="font-mono font-bold">{{ formatCurrency(subtotal) }}</span>
+          </div>
+          <button 
+            @click="openCheckout" 
+            class="btn btn-primary w-full"
+            :disabled="cart.length === 0"
+          >
+            Checkout
+            <IconCheck class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <dialog :class="['modal', showCheckoutModal && 'modal-open']">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Checkout</h3>
+        
+        <div class="space-y-4">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Nama Pembeli *</span></label>
+            <input v-model="customerName" type="text" class="input input-bordered" placeholder="Nama Customer" />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">No. Telepon</span></label>
+            <input v-model="customerPhone" type="tel" class="input input-bordered" placeholder="08..." />
+          </div>
+          
+          <div class="divider my-2"></div>
+          
+          <div class="flex justify-between items-center text-sm">
+            <span>Subtotal</span>
+            <span class="font-mono">{{ formatCurrency(subtotal) }}</span>
+          </div>
+          
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text">Diskon</span></label>
+            <input v-model="discount" type="number" class="input input-bordered input-sm" min="0" />
+          </div>
+          
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text">Metode Bayar</span></label>
+            <select v-model="paymentMethod" class="select select-bordered select-sm">
+              <option value="CASH">Cash</option>
+              <option value="TRANSFER">Transfer</option>
+              <option value="CARD">Kartu Debit/Kredit</option>
+              <option value="QRIS">QRIS</option>
+            </select>
+          </div>
+          
+          <div class="divider my-2"></div>
+          
+          <div class="flex justify-between items-center text-xl font-bold">
+            <span>Total</span>
+            <span class="text-primary">{{ formatCurrency(total) }}</span>
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="showCheckoutModal = false">Batal</button>
+          <button 
+            @click="processSale" 
+            class="btn btn-primary"
+            :disabled="loading || !customerName"
+          >
+            <span v-if="loading" class="loading loading-spinner"></span>
+            <template v-else>
+              Bayar & Cetak Struk
+              <IconCheck class="w-5 h-5" />
+            </template>
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop" @click="showCheckoutModal = false"></form>
+    </dialog>
 
     <!-- Success Modal -->
     <dialog :class="['modal', showSuccessModal && 'modal-open']">
@@ -299,12 +334,17 @@ const formatCurrency = (value: number) => {
             <IconDownload class="w-4 h-4" />
             E-Receipt
           </NuxtLink>
+          <NuxtLink 
+            :to="`/sales/sparepart-invoice/${lastSaleId}`" 
+            class="btn btn-accent gap-2"
+            target="_blank"
+          >
+            <IconReceipt class="w-4 h-4" />
+            Invoice
+          </NuxtLink>
           <button class="btn btn-primary" @click="showSuccessModal = false">
             Transaksi Baru
           </button>
-          <NuxtLink to="/sales" class="btn btn-outline" @click="showSuccessModal = false">
-            Lihat Riwayat
-          </NuxtLink>
         </div>
       </div>
     </dialog>

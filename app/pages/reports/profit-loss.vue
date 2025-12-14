@@ -200,66 +200,114 @@ const handleExportPDF = async () => {
                             <tbody>
                                 <!-- Operating Revenue -->
                                 <tr class="bg-base-300/50">
-                                    <td class="font-bold">PENDAPATAN OPERASIONAL</td>
+                                    <td colspan="2" class="font-bold">PENDAPATAN OPERASIONAL</td>
                                     <td class="text-right"></td>
                                 </tr>
-                                <tr>
-                                    <td class="pl-6">Penjualan Motor</td>
+                                
+                                <!-- Motor Revenue Details -->
+                                <tr class="bg-base-300/30">
+                                    <td colspan="2" class="pl-4 font-semibold">Penjualan Motor</td>
                                     <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalRevenue) }}</td>
                                 </tr>
-                                <tr>
-                                    <td class="pl-6">Penjualan Produk</td>
+                                <template v-for="sale in report.salesDetails.filter((s: any) => s.type === 'Motor')" :key="sale.id">
+                                    <tr>
+                                        <td class="pl-8 text-sm" colspan="2">{{ sale.name }}</td>
+                                        <td class="text-right font-mono text-sm">{{ formatCurrency(sale.sellingPrice) }}</td>
+                                    </tr>
+                                </template>
+                                
+                                <!-- Product Revenue Details -->
+                                <tr class="bg-base-300/30">
+                                    <td colspan="2" class="pl-4 font-semibold">Penjualan Produk</td>
                                     <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.product.totalRevenue) }}</td>
                                 </tr>
-                                <tr class="border-t border-base-300">
-                                    <td class="font-semibold">Total Pendapatan Operasional</td>
+                                <template v-for="sale in report.salesDetails.filter((s: any) => s.type === 'Product')" :key="sale.id">
+                                    <tr>
+                                        <td class="pl-8 text-sm" colspan="2">{{ sale.name }}</td>
+                                        <td class="text-right font-mono text-sm">{{ formatCurrency(sale.sellingPrice) }}</td>
+                                    </tr>
+                                </template>
+                                
+                                <tr class="border-t-2 border-base-300">
+                                    <td colspan="2" class="font-bold">Total Pendapatan Operasional</td>
                                     <td class="text-right font-mono font-bold text-success">{{ formatCurrency(report.summary.totalRevenue) }}</td>
                                 </tr>
                                 
                                 <!-- Empty row separator -->
-                                <tr><td colspan="2" class="py-2"></td></tr>
+                                <tr><td colspan="3" class="py-2"></td></tr>
                                 
-                                <!-- HPP -->
+                                <!-- HPP Section -->
                                 <tr class="bg-base-300/50">
-                                    <td class="font-bold">HARGA POKOK PENJUALAN (HPP)</td>
+                                    <td colspan="2" class="font-bold">HARGA POKOK PENJUALAN (HPP)</td>
                                     <td class="text-right"></td>
                                 </tr>
-                                <tr>
-                                    <td class="pl-6">HPP Motor</td>
+                                
+                                <!-- Motor HPP Details -->
+                                <tr class="bg-base-300/30">
+                                    <td colspan="2" class="pl-4 font-semibold">HPP Motor</td>
                                     <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalHPP) }}</td>
                                 </tr>
-                                <tr>
-                                    <td class="pl-6">HPP Produk</td>
+                                <template v-for="sale in report.salesDetails.filter((s: any) => s.type === 'Motor')" :key="'hpp-'+sale.id">
+                                    <tr>
+                                        <td class="pl-8 text-sm">{{ sale.name }}</td>
+                                        <td class="text-right text-xs text-base-content/60">{{ sale.costBreakdown?.length || 0 }} biaya</td>
+                                        <td class="text-right font-mono text-sm">{{ formatCurrency(sale.hpp) }}</td>
+                                    </tr>
+                                    <template v-if="sale.costBreakdown?.length">
+                                        <tr v-for="(cost, idx) in sale.costBreakdown" :key="'cost-'+sale.id+'-'+idx">
+                                            <td class="pl-12 text-xs text-base-content/60" colspan="2">- {{ cost.description || cost.component }}</td>
+                                            <td class="text-right font-mono text-xs text-base-content/60">{{ formatCurrency(cost.amount) }}</td>
+                                        </tr>
+                                    </template>
+                                </template>
+                                
+                                <!-- Product HPP Details -->
+                                <tr class="bg-base-300/30">
+                                    <td colspan="2" class="pl-4 font-semibold">HPP Produk</td>
                                     <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.product.totalHPP) }}</td>
                                 </tr>
-                                <tr class="border-t border-base-300">
-                                    <td class="font-semibold">Total HPP</td>
+                                <template v-for="sale in report.salesDetails.filter((s: any) => s.type === 'Product')" :key="'hpp-'+sale.id">
+                                    <tr>
+                                        <td class="pl-8 text-sm">{{ sale.name }}</td>
+                                        <td class="text-right text-xs text-base-content/60">{{ sale.costBreakdown?.length || 0 }} biaya</td>
+                                        <td class="text-right font-mono text-sm">{{ formatCurrency(sale.hpp) }}</td>
+                                    </tr>
+                                    <template v-if="sale.costBreakdown?.length">
+                                        <tr v-for="(cost, idx) in sale.costBreakdown" :key="'cost-'+sale.id+'-'+idx">
+                                            <td class="pl-12 text-xs text-base-content/60" colspan="2">- {{ cost.description || cost.component }}</td>
+                                            <td class="text-right font-mono text-xs text-base-content/60">{{ formatCurrency(cost.amount) }}</td>
+                                        </tr>
+                                    </template>
+                                </template>
+                                
+                                <tr class="border-t-2 border-base-300">
+                                    <td colspan="2" class="font-bold">Total HPP</td>
                                     <td class="text-right font-mono font-bold text-error">{{ formatCurrency(report.summary.totalHPP) }}</td>
                                 </tr>
                                 
                                 <!-- Empty row separator -->
-                                <tr><td colspan="2" class="py-2"></td></tr>
+                                <tr><td colspan="3" class="py-2"></td></tr>
                                 
                                 <!-- Gross Profit -->
                                 <tr class="bg-success/20">
-                                    <td class="font-bold">LABA KOTOR (GROSS PROFIT)</td>
+                                    <td colspan="2" class="font-bold">LABA KOTOR (GROSS PROFIT)</td>
                                     <td :class="['text-right font-mono font-bold text-lg', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
                                         {{ formatCurrency(report.summary.grossProfit) }}
                                     </td>
                                 </tr>
                                 
                                 <!-- Empty row separator -->
-                                <tr><td colspan="2" class="py-2"></td></tr>
+                                <tr><td colspan="3" class="py-2"></td></tr>
                                 
                                 <!-- Net Profit -->
                                 <tr class="bg-primary/20">
-                                    <td class="font-bold">LABA BERSIH (NET PROFIT)</td>
+                                    <td colspan="2" class="font-bold">LABA BERSIH (NET PROFIT)</td>
                                     <td :class="['text-right font-mono font-bold text-lg', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
                                         {{ formatCurrency(report.summary.grossProfit) }}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="font-semibold">Margin Laba</td>
+                                    <td colspan="2" class="font-semibold">Margin Laba</td>
                                     <td :class="['text-right font-mono font-bold', report.summary.profitMargin >= 0 ? 'text-success' : 'text-error']">
                                         {{ report.summary.profitMargin.toFixed(1) }}%
                                     </td>

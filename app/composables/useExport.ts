@@ -95,6 +95,36 @@ export function useExport() {
         })
     }
 
+    // Helper function to load logo as base64 for PDF with dimensions
+    const loadLogo = async (): Promise<{ data: string; width: number; height: number } | null> => {
+        return new Promise((resolve) => {
+            try {
+                const img = new Image()
+                img.crossOrigin = 'anonymous'
+                img.onload = () => {
+                    const canvas = document.createElement('canvas')
+                    canvas.width = img.width
+                    canvas.height = img.height
+                    const ctx = canvas.getContext('2d')
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0)
+                        resolve({
+                            data: canvas.toDataURL('image/png'),
+                            width: img.width,
+                            height: img.height
+                        })
+                    } else {
+                        resolve(null)
+                    }
+                }
+                img.onerror = () => resolve(null)
+                img.src = '/logo.png'
+            } catch {
+                resolve(null)
+            }
+        })
+    }
+
     // Helper function to trigger file download
     const downloadFile = (blob: Blob, filename: string) => {
         const url = window.URL.createObjectURL(blob)
@@ -190,15 +220,27 @@ export function useExport() {
         const { default: autoTable } = await import('jspdf-autotable')
 
         const doc = new jsPDF()
+        const pageWidth = doc.internal.pageSize.getWidth()
 
-        // Header
+        // Load and add logo (left side with aspect ratio)
+        const logo = await loadLogo()
+        let logoHeight = 0
+        if (logo) {
+            const maxLogoHeight = 18
+            const ratio = maxLogoHeight / logo.height
+            const logoW = logo.width * ratio
+            logoHeight = maxLogoHeight
+            doc.addImage(logo.data, 'PNG', 14, 10, logoW, logoHeight)
+        }
+
+        // Header (next to logo)
         doc.setFontSize(18)
         doc.setFont('helvetica', 'bold')
-        doc.text('LAPORAN TRANSAKSI', 105, 20, { align: 'center' })
+        doc.text('LAPORAN TRANSAKSI', pageWidth / 2, 18, { align: 'center' })
 
         doc.setFontSize(12)
         doc.setFont('helvetica', 'normal')
-        doc.text('HD Sales - Harley Davidson', 105, 28, { align: 'center' })
+        doc.text('DIGARASI ID', pageWidth / 2, 26, { align: 'center' })
 
         // Filter info
         doc.setFontSize(10)
@@ -297,50 +339,72 @@ export function useExport() {
             ['LAPORAN LABA RUGI (PROFIT & LOSS)'],
             [`Periode: ${formatDate(period.startDate)} - ${formatDate(period.endDate)}`],
             [''],
-            ['AKUN', 'JUMLAH'],
+            ['AKUN', 'DETAIL', 'JUMLAH'],
             [''],
-            ['PENDAPATAN OPERASIONAL', ''],
+            ['PENDAPATAN OPERASIONAL', '', ''],
         ]
 
-        // Revenue breakdown
+        // Motor Revenue Details
         if (categoryBreakdown) {
-            pnlData.push(['  Penjualan Motor', categoryBreakdown.motorcycle.totalRevenue])
-            pnlData.push(['  Penjualan Produk', categoryBreakdown.product.totalRevenue])
+            pnlData.push(['  Penjualan Motor', '', categoryBreakdown.motorcycle.totalRevenue])
+            salesDetails.filter(s => s.type === 'Motor').forEach(sale => {
+                pnlData.push(['    ' + sale.name, sale.invoiceNumber, sale.sellingPrice])
+            })
+
+            // Product Revenue Details
+            pnlData.push(['  Penjualan Produk', '', categoryBreakdown.product.totalRevenue])
+            salesDetails.filter(s => s.type === 'Product').forEach(sale => {
+                pnlData.push(['    ' + sale.name, sale.invoiceNumber, sale.sellingPrice])
+            })
         }
-        pnlData.push(['Total Pendapatan Operasional', summary.totalRevenue])
+        pnlData.push(['Total Pendapatan Operasional', '', summary.totalRevenue])
         pnlData.push([''])
 
-        // Cost of Goods Sold
-        pnlData.push(['HARGA POKOK PENJUALAN (HPP)', ''])
+        // Cost of Goods Sold with details
+        pnlData.push(['HARGA POKOK PENJUALAN (HPP)', '', ''])
         if (categoryBreakdown) {
-            pnlData.push(['  HPP Motor', categoryBreakdown.motorcycle.totalHPP])
-            pnlData.push(['  HPP Produk', categoryBreakdown.product.totalHPP])
+            pnlData.push(['  HPP Motor', '', categoryBreakdown.motorcycle.totalHPP])
+            salesDetails.filter(s => s.type === 'Motor').forEach(sale => {
+                pnlData.push(['    ' + sale.name, `${sale.costBreakdown?.length || 0} biaya`, sale.hpp])
+                if (sale.costBreakdown?.length) {
+                    sale.costBreakdown.forEach(cost => {
+                        pnlData.push(['      - ' + (cost.description || cost.component), '', cost.amount])
+                    })
+                }
+            })
+
+            pnlData.push(['  HPP Produk', '', categoryBreakdown.product.totalHPP])
+            salesDetails.filter(s => s.type === 'Product').forEach(sale => {
+                pnlData.push(['    ' + sale.name, `${sale.costBreakdown?.length || 0} biaya`, sale.hpp])
+                if (sale.costBreakdown?.length) {
+                    sale.costBreakdown.forEach(cost => {
+                        pnlData.push(['      - ' + (cost.description || cost.component), '', cost.amount])
+                    })
+                }
+            })
         }
-        pnlData.push(['Total HPP', summary.totalHPP])
+        pnlData.push(['Total HPP', '', summary.totalHPP])
         pnlData.push([''])
 
         // Gross Profit
-        pnlData.push(['LABA KOTOR', summary.grossProfit])
+        pnlData.push(['LABA KOTOR', '', summary.grossProfit])
         pnlData.push([''])
 
-        // Profit margin
-        pnlData.push(['Margin Laba (%)', `${summary.profitMargin?.toFixed(1)}%`])
+        // Net Profit
+        pnlData.push(['LABA BERSIH', '', summary.grossProfit])
+        pnlData.push(['Margin Laba (%)', '', `${summary.profitMargin?.toFixed(1)}%`])
         pnlData.push([''])
 
         // Summary by category
         pnlData.push([''])
-        pnlData.push(['RINGKASAN PER KATEGORI', ''])
+        pnlData.push(['RINGKASAN PER KATEGORI', '', ''])
         if (categoryBreakdown) {
-            pnlData.push(['Motor', ''])
-            pnlData.push(['  Jumlah Transaksi', categoryBreakdown.motorcycle.count])
-            pnlData.push(['  Total Profit', categoryBreakdown.motorcycle.totalProfit])
-            pnlData.push(['Produk', ''])
-            pnlData.push(['  Jumlah Transaksi', categoryBreakdown.product.count])
-            pnlData.push(['  Total Profit', categoryBreakdown.product.totalProfit])
+            pnlData.push(['Motor', `${categoryBreakdown.motorcycle.count} transaksi`, categoryBreakdown.motorcycle.totalProfit])
+            pnlData.push(['Produk', `${categoryBreakdown.product.count} transaksi`, categoryBreakdown.product.totalProfit])
         }
 
         const pnlWs = XLSX.utils.aoa_to_sheet(pnlData)
-        pnlWs['!cols'] = [{ wch: 40 }, { wch: 20 }]
+        pnlWs['!cols'] = [{ wch: 45 }, { wch: 20 }, { wch: 20 }]
         XLSX.utils.book_append_sheet(wb, pnlWs, 'Laba Rugi')
 
         // Sheet 2: Detail Transaksi
@@ -405,7 +469,16 @@ export function useExport() {
         const doc = new jsPDF('portrait')
         const pageWidth = doc.internal.pageSize.getWidth()
 
-        // Header
+        // Load and add logo (left side with aspect ratio)
+        const logo = await loadLogo()
+        if (logo) {
+            const maxLogoHeight = 18
+            const ratio = maxLogoHeight / logo.height
+            const logoW = logo.width * ratio
+            doc.addImage(logo.data, 'PNG', 14, 10, logoW, maxLogoHeight)
+        }
+
+        // Header (centered)
         doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
         doc.text('LAPORAN LABA RUGI', pageWidth / 2, 15, { align: 'center' })
@@ -413,7 +486,7 @@ export function useExport() {
 
         doc.setFontSize(11)
         doc.setFont('helvetica', 'normal')
-        doc.text('HD Sales - Harley Davidson', pageWidth / 2, 30, { align: 'center' })
+        doc.text('DIGARASI ID', pageWidth / 2, 30, { align: 'center' })
         doc.setFontSize(10)
         doc.text(`Periode: ${formatDate(period.startDate)} - ${formatDate(period.endDate)}`, pageWidth / 2, 36, { align: 'center' })
 
@@ -421,42 +494,65 @@ export function useExport() {
         const pnlTableData: any[][] = []
 
         // Operating Revenue section
-        pnlTableData.push([{ content: 'PENDAPATAN OPERASIONAL', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, ''])
+        pnlTableData.push([{ content: 'PENDAPATAN OPERASIONAL', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, '', ''])
         if (categoryBreakdown) {
-            pnlTableData.push(['   Penjualan Motor', formatCurrency(categoryBreakdown.motorcycle.totalRevenue)])
-            pnlTableData.push(['   Penjualan Produk', formatCurrency(categoryBreakdown.product.totalRevenue)])
+            pnlTableData.push([{ content: '   Penjualan Motor', styles: { fontStyle: 'bold' } }, '', formatCurrency(categoryBreakdown.motorcycle.totalRevenue)])
+            salesDetails.filter(s => s.type === 'Motor').forEach(sale => {
+                pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, sale.invoiceNumber, formatCurrency(sale.sellingPrice)])
+            })
+            pnlTableData.push([{ content: '   Penjualan Produk', styles: { fontStyle: 'bold' } }, '', formatCurrency(categoryBreakdown.product.totalRevenue)])
+            salesDetails.filter(s => s.type === 'Product').forEach(sale => {
+                pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, sale.invoiceNumber, formatCurrency(sale.sellingPrice)])
+            })
         }
-        pnlTableData.push([{ content: 'Total Pendapatan Operasional', styles: { fontStyle: 'bold' } }, { content: formatCurrency(summary.totalRevenue), styles: { fontStyle: 'bold' } }])
+        pnlTableData.push([{ content: 'Total Pendapatan Operasional', styles: { fontStyle: 'bold' } }, '', { content: formatCurrency(summary.totalRevenue), styles: { fontStyle: 'bold' } }])
 
-        pnlTableData.push(['', '']) // Separator
+        pnlTableData.push(['', '', '']) // Separator
 
-        // COGS section
-        pnlTableData.push([{ content: 'HARGA POKOK PENJUALAN (HPP)', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, ''])
+        // COGS section with details
+        pnlTableData.push([{ content: 'HARGA POKOK PENJUALAN (HPP)', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, '', ''])
         if (categoryBreakdown) {
-            pnlTableData.push(['   HPP Motor', formatCurrency(categoryBreakdown.motorcycle.totalHPP)])
-            pnlTableData.push(['   HPP Produk', formatCurrency(categoryBreakdown.product.totalHPP)])
+            pnlTableData.push([{ content: '   HPP Motor', styles: { fontStyle: 'bold' } }, '', formatCurrency(categoryBreakdown.motorcycle.totalHPP)])
+            salesDetails.filter(s => s.type === 'Motor').forEach(sale => {
+                pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, `${sale.costBreakdown?.length || 0} biaya`, formatCurrency(sale.hpp)])
+                if (sale.costBreakdown?.length) {
+                    sale.costBreakdown.forEach(cost => {
+                        pnlTableData.push([{ content: `         - ${cost.description || cost.component}`, styles: { fontSize: 7, textColor: [100, 100, 100] } }, '', { content: formatCurrency(cost.amount), styles: { fontSize: 7, textColor: [100, 100, 100] } }])
+                    })
+                }
+            })
+            pnlTableData.push([{ content: '   HPP Produk', styles: { fontStyle: 'bold' } }, '', formatCurrency(categoryBreakdown.product.totalHPP)])
+            salesDetails.filter(s => s.type === 'Product').forEach(sale => {
+                pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, `${sale.costBreakdown?.length || 0} biaya`, formatCurrency(sale.hpp)])
+                if (sale.costBreakdown?.length) {
+                    sale.costBreakdown.forEach(cost => {
+                        pnlTableData.push([{ content: `         - ${cost.description || cost.component}`, styles: { fontSize: 7, textColor: [100, 100, 100] } }, '', { content: formatCurrency(cost.amount), styles: { fontSize: 7, textColor: [100, 100, 100] } }])
+                    })
+                }
+            })
         }
-        pnlTableData.push([{ content: 'Total HPP', styles: { fontStyle: 'bold' } }, { content: formatCurrency(summary.totalHPP), styles: { fontStyle: 'bold' } }])
+        pnlTableData.push([{ content: 'Total HPP', styles: { fontStyle: 'bold' } }, '', { content: formatCurrency(summary.totalHPP), styles: { fontStyle: 'bold' } }])
 
-        pnlTableData.push(['', '']) // Separator
+        pnlTableData.push(['', '', '']) // Separator
 
         // Gross Profit
-        pnlTableData.push([{ content: 'LABA KOTOR (GROSS PROFIT)', styles: { fontStyle: 'bold', fillColor: [200, 230, 200] } }, { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [200, 230, 200] } }])
+        pnlTableData.push([{ content: 'LABA KOTOR (GROSS PROFIT)', styles: { fontStyle: 'bold', fillColor: [200, 230, 200] } }, '', { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [200, 230, 200] } }])
 
-        pnlTableData.push(['', '']) // Separator
+        pnlTableData.push(['', '', '']) // Separator
 
         // Net Profit (same as Gross since no operating expenses)
-        pnlTableData.push([{ content: 'LABA BERSIH (NET PROFIT)', styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }, { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }])
-        pnlTableData.push([{ content: 'Margin Laba', styles: { fontStyle: 'bold' } }, { content: `${summary.profitMargin?.toFixed(1)}%`, styles: { fontStyle: 'bold' } }])
+        pnlTableData.push([{ content: 'LABA BERSIH (NET PROFIT)', styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }, '', { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }])
+        pnlTableData.push([{ content: 'Margin Laba', styles: { fontStyle: 'bold' } }, '', { content: `${summary.profitMargin?.toFixed(1)}%`, styles: { fontStyle: 'bold' } }])
 
         autoTable(doc, {
             body: pnlTableData,
             startY: 44,
             theme: 'plain',
-            styles: { fontSize: 10, cellPadding: 3 },
+            styles: { fontSize: 9, cellPadding: 2 },
             columnStyles: {
-                0: { cellWidth: 120 },
-                1: { cellWidth: 60, halign: 'right' },
+                0: { cellWidth: 95 },
+                1: { cellWidth: 45 },
+                2: { cellWidth: 45, halign: 'right' },
             },
             didParseCell: (data) => {
                 if (data.row.index === pnlTableData.length - 1 || data.row.index === pnlTableData.length - 2) {
@@ -558,14 +654,25 @@ export function useExport() {
         const { default: autoTable } = await import('jspdf-autotable')
 
         const doc = new jsPDF()
+        const pageWidth = doc.internal.pageSize.getWidth()
 
+        // Load and add logo (left side with aspect ratio)
+        const logo = await loadLogo()
+        if (logo) {
+            const maxLogoHeight = 18
+            const ratio = maxLogoHeight / logo.height
+            const logoW = logo.width * ratio
+            doc.addImage(logo.data, 'PNG', 14, 10, logoW, maxLogoHeight)
+        }
+
+        // Header (centered)
         doc.setFontSize(18)
         doc.setFont('helvetica', 'bold')
-        doc.text('LAPORAN INVENTORY ASSET', 105, 15, { align: 'center' })
+        doc.text('LAPORAN INVENTORY ASSET', pageWidth / 2, 18, { align: 'center' })
 
         doc.setFontSize(12)
         doc.setFont('helvetica', 'normal')
-        doc.text('HD Sales - Harley Davidson', 105, 22, { align: 'center' })
+        doc.text('DIGARASI ID', pageWidth / 2, 26, { align: 'center' })
 
         // Summary
         doc.setFontSize(10)

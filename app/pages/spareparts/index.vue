@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconSearch, IconPlus, IconFilter, IconAlertTriangle, IconPackage, IconTag } from '@tabler/icons-vue'
+import { IconSearch, IconPlus, IconFilter, IconAlertTriangle, IconPackage, IconTag, IconAdjustments, IconInfinity } from '@tabler/icons-vue'
 
 interface Sparepart {
   id: string
@@ -10,6 +10,7 @@ interface Sparepart {
   stock: number
   minStock: number
   sellingPrice: number
+  purchasePrice: number
   currency: string
   status: string
   supplier?: { name: string }
@@ -19,6 +20,7 @@ const search = ref('')
 const debouncedSearch = refDebounced(search, 300)
 const category = ref('ALL')
 const status = ref('ALL')
+const { showSuccess, showError } = useAlert()
 
 const { data: spareparts, pending, refresh } = await useFetch<Sparepart[]>('/api/spareparts', {
   query: { 
@@ -28,6 +30,40 @@ const { data: spareparts, pending, refresh } = await useFetch<Sparepart[]>('/api
   },
   watch: [debouncedSearch, category, status]
 })
+
+// Stock adjustment modal
+const showAdjustModal = ref(false)
+const adjustItem = ref<Sparepart | null>(null)
+const adjustForm = ref({
+  quantity: 0,
+  type: 'PURCHASE',
+  reason: ''
+})
+const adjusting = ref(false)
+
+const openAdjustModal = (item: Sparepart) => {
+  adjustItem.value = item
+  adjustForm.value = { quantity: 0, type: 'PURCHASE', reason: '' }
+  showAdjustModal.value = true
+}
+
+const submitAdjustment = async () => {
+  if (!adjustItem.value || adjustForm.value.quantity === 0) return
+  adjusting.value = true
+  try {
+    await $fetch(`/api/spareparts/${adjustItem.value.id}/stock-adjustment`, {
+      method: 'POST',
+      body: adjustForm.value
+    })
+    showSuccess('Stok berhasil disesuaikan')
+    showAdjustModal.value = false
+    refresh()
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal menyesuaikan stok')
+  } finally {
+    adjusting.value = false
+  }
+}
 
 const formatCurrency = (value: number, currency: string = 'IDR') => {
   if (currency === 'IDR') {
@@ -45,6 +81,7 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
 
 const getCategoryBadge = (cat: string) => {
   switch (cat) {
+    case 'SERVICE': return 'badge-info'
     case 'SPAREPART': return 'badge-primary'
     case 'ACCESSORY': return 'badge-secondary'
     case 'APPAREL': return 'badge-accent'
@@ -60,9 +97,9 @@ const getCategoryBadge = (cat: string) => {
       <div>
         <h1 class="text-3xl font-bold flex items-center gap-2">
           <IconPackage class="w-8 h-8 text-primary" :stroke-width="1.5" />
-          Spareparts & Accessories
+          Services & Spareparts
         </h1>
-        <p class="text-base-content/60">Manajemen stok produk dan komponen</p>
+        <p class="text-base-content/60">Manajemen services, sparepart, dan accessories</p>
       </div>
       <div class="flex gap-2">
         <NuxtLink to="/spareparts/sell" class="btn btn-secondary">
@@ -93,6 +130,7 @@ const getCategoryBadge = (cat: string) => {
           </div>
           <select v-model="category" class="select select-bordered bg-base-300 w-full md:w-48">
             <option value="ALL">Semua Kategori</option>
+            <option value="SERVICE">Service</option>
             <option value="SPAREPART">Sparepart</option>
             <option value="ACCESSORY">Accessory</option>
             <option value="APPAREL">Apparel</option>
@@ -146,7 +184,11 @@ const getCategoryBadge = (cat: string) => {
                   <span :class="['badge badge-sm', getCategoryBadge(item.category)]">{{ item.category }}</span>
                 </td>
                 <td>
-                  <div class="flex items-center gap-2">
+                  <div v-if="item.category === 'SERVICE'" class="flex items-center gap-1">
+                    <IconInfinity class="w-4 h-4 text-info" :stroke-width="1.5" />
+                    <span class="text-xs text-base-content/60">Unlimited</span>
+                  </div>
+                  <div v-else class="flex items-center gap-2">
                     <span :class="{'text-error font-bold': item.stock <= item.minStock}">{{ item.stock }}</span>
                     <IconAlertTriangle 
                       v-if="item.stock <= item.minStock" 
@@ -163,9 +205,19 @@ const getCategoryBadge = (cat: string) => {
                   <span class="ml-2 text-xs">{{ item.status }}</span>
                 </td>
                 <td>
-                  <NuxtLink :to="`/spareparts/${item.id}`" class="btn btn-ghost btn-xs">
-                    Detail
-                  </NuxtLink>
+                  <div class="flex items-center gap-1">
+                    <button
+                      v-if="item.category !== 'SERVICE'"
+                      @click="openAdjustModal(item)"
+                      class="btn btn-ghost btn-xs"
+                      title="Adjust Stock"
+                    >
+                      <IconAdjustments class="w-4 h-4" :stroke-width="1.5" />
+                    </button>
+                    <NuxtLink :to="`/spareparts/${item.id}`" class="btn btn-ghost btn-xs">
+                      Detail
+                    </NuxtLink>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -180,5 +232,54 @@ const getCategoryBadge = (cat: string) => {
       <h3 class="text-lg font-bold">Tidak ada produk ditemukan</h3>
       <p>Coba gunakan kata kunci lain atau tambahkan produk baru</p>
     </div>
+
+    <!-- Stock Adjustment Modal -->
+    <dialog :class="['modal', { 'modal-open': showAdjustModal }]">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Penyesuaian Stok</h3>
+        <div v-if="adjustItem" class="space-y-4">
+          <div class="bg-base-200 rounded-lg p-3">
+            <p class="font-medium">{{ adjustItem.name }}</p>
+            <p class="text-sm text-base-content/60">SKU: {{ adjustItem.sku }} | Stok saat ini: {{ adjustItem.stock }}</p>
+          </div>
+          
+          <div class="form-control">
+            <label class="label"><span class="label-text">Tipe Penyesuaian</span></label>
+            <select v-model="adjustForm.type" class="select select-bordered bg-base-300">
+              <option value="PURCHASE">Pembelian (+)</option>
+              <option value="RETURN">Return (+)</option>
+              <option value="ADJUSTMENT">Penyesuaian (-)</option>
+              <option value="LOSS">Kehilangan (-)</option>
+            </select>
+          </div>
+          
+          <div class="form-control">
+            <label class="label"><span class="label-text">Jumlah</span></label>
+            <input
+              v-model.number="adjustForm.quantity"
+              type="number"
+              class="input input-bordered bg-base-300"
+              :placeholder="adjustForm.type === 'PURCHASE' || adjustForm.type === 'RETURN' ? 'Masukkan jumlah (+)' : 'Masukkan jumlah (-)'"
+            />
+            <label class="label" v-if="adjustItem.purchasePrice">
+              <span class="label-text-alt">Total: {{ formatCurrency(Math.abs(adjustForm.quantity) * adjustItem.purchasePrice) }}</span>
+            </label>
+          </div>
+          
+          <div class="form-control">
+            <label class="label"><span class="label-text">Alasan (opsional)</span></label>
+            <input v-model="adjustForm.reason" type="text" class="input input-bordered bg-base-300" placeholder="Catatan penyesuaian" />
+          </div>
+        </div>
+        <div class="modal-action">
+          <button @click="showAdjustModal = false" class="btn btn-ghost">Batal</button>
+          <button @click="submitAdjustment" class="btn btn-primary" :disabled="adjusting || adjustForm.quantity === 0">
+            <span v-if="adjusting" class="loading loading-spinner loading-sm"></span>
+            Simpan
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop" @click="showAdjustModal = false"></form>
+    </dialog>
   </div>
 </template>

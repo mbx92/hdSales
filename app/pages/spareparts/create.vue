@@ -24,6 +24,7 @@ const form = ref({
 })
 
 const categories = [
+  { value: 'SERVICE', label: 'Service' },
   { value: 'SPAREPART', label: 'Sparepart' },
   { value: 'ACCESSORY', label: 'Aksesoris' },
   { value: 'APPAREL', label: 'Apparel / Merchandise' },
@@ -87,7 +88,7 @@ const handleSubmit = async () => {
               <label class="label"><span class="label-text">Brand / Merk</span></label>
               <input v-model="form.brand" type="text" class="input input-bordered bg-base-300" placeholder="Harley Davidson, Aftermarket, dll" />
             </div>
-            <div class="form-control">
+            <div class="form-control" v-if="form.category !== 'SERVICE'">
               <label class="label"><span class="label-text">Supplier</span></label>
               <select v-model="form.supplierId" class="select select-bordered bg-base-300">
                 <option value="">-- Pilih Supplier --</option>
@@ -117,11 +118,11 @@ const handleSubmit = async () => {
               <label class="label"><span class="label-text">Harga Jual</span></label>
               <input v-model="form.sellingPrice" type="number" class="input input-bordered bg-base-300" required min="0" />
             </div>
-            <div class="form-control">
+            <div class="form-control" v-if="form.category !== 'SERVICE'">
               <label class="label"><span class="label-text">Stok Awal</span></label>
               <input v-model="form.stock" type="number" class="input input-bordered bg-base-300" required min="0" />
             </div>
-            <div class="form-control">
+            <div class="form-control" v-if="form.category !== 'SERVICE'">
               <label class="label"><span class="label-text">Minimum Stok (Alert)</span></label>
               <input v-model="form.minStock" type="number" class="input input-bordered bg-base-300" required min="0" />
             </div>

@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
             currency: body.currency || 'IDR',
             stock: parseInt(body.stock || 0),
             minStock: parseInt(body.minStock || 1),
-            supplierId: body.supplierId,
+            supplierId: body.supplierId || undefined,
             status: body.status || 'ACTIVE',
         }
     })

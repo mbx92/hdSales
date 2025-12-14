@@ -29,6 +29,19 @@ export default defineEventHandler(async () => {
         ],
     })
 
+    // Get spareparts with stock > 0 (exclude SERVICE category)
+    const spareparts = await prisma.sparepart.findMany({
+        where: {
+            stock: { gt: 0 },
+            category: { not: 'SERVICE' },
+            status: 'ACTIVE',
+        },
+        orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+        ],
+    })
+
     // Calculate totals for motorcycles
     const motorcycleAssets = motorcycles.map((m) => {
         const totalCost = m.costs.reduce((sum, c) => sum + c.amountIdr, 0)
@@ -62,6 +75,24 @@ export default defineEventHandler(async () => {
         }
     })
 
+    // Calculate totals for spareparts
+    const sparepartAssets = spareparts.map((s) => {
+        return {
+            id: s.id,
+            type: 'Sparepart',
+            name: s.name,
+            sku: s.sku,
+            category: s.category,
+            brand: s.brand,
+            stock: s.stock,
+            minStock: s.minStock,
+            purchasePrice: s.purchasePrice,
+            totalValue: s.stock * s.purchasePrice,
+            status: s.status,
+            createdAt: s.createdAt,
+        }
+    })
+
     // Summary
     const motorcycleSummary = {
         count: motorcycleAssets.length,
@@ -77,14 +108,23 @@ export default defineEventHandler(async () => {
         totalValue: productAssets.reduce((sum, p) => sum + p.totalCost, 0),
     }
 
+    const sparepartSummary = {
+        count: sparepartAssets.length,
+        totalStock: sparepartAssets.reduce((sum, s) => sum + s.stock, 0),
+        lowStock: sparepartAssets.filter((s) => s.stock <= s.minStock).length,
+        totalValue: sparepartAssets.reduce((sum, s) => sum + s.totalValue, 0),
+    }
+
     return {
         summary: {
-            totalAssets: motorcycleSummary.count + productSummary.count,
-            totalValue: motorcycleSummary.totalValue + productSummary.totalValue,
+            totalAssets: motorcycleSummary.count + productSummary.count + sparepartSummary.count,
+            totalValue: motorcycleSummary.totalValue + productSummary.totalValue + sparepartSummary.totalValue,
             motorcycle: motorcycleSummary,
             product: productSummary,
+            sparepart: sparepartSummary,
         },
         motorcycles: motorcycleAssets,
         products: productAssets,
+        spareparts: sparepartAssets,
     }
 })

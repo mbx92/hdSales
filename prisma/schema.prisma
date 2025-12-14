@@ -184,8 +184,9 @@ model CashFlow {
   productCosts     ProductCost[]
   productSales     ProductSale[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  stockAdjustments StockAdjustment[]
 
   @@index([type, transactionDate])
   @@index([currency])
@@ -237,9 +238,41 @@ model Sparepart {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  saleItems SparepartSaleItem[]
+  saleItems        SparepartSaleItem[]
+  stockAdjustments StockAdjustment[]
 
   @@map("spareparts")
+}
+
+model StockAdjustment {
+  id          String    @id @default(cuid())
+  sparepartId String
+  sparepart   Sparepart @relation(fields: [sparepartId], references: [id], onDelete: Cascade)
+
+  // Quantity change: positive for increase, negative for decrease
+  quantity Int
+  // PURCHASE, ADJUSTMENT, LOSS, RETURN
+  type     String
+  reason   String?
+
+  // Cost tracking
+  unitCost    Float // HPP per unit
+  totalAmount Float // quantity * unitCost (absolute value)
+
+  // Previous and new stock for audit
+  previousStock Int
+  newStock      Int
+
+  createdAt DateTime @default(now())
+
+  // Relation to CashFlow
+  cashFlowId String?
+  cashFlow   CashFlow? @relation(fields: [cashFlowId], references: [id])
+
+  @@index([sparepartId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("stock_adjustments")
 }
 
 model SparepartSale {
