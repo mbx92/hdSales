@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { IconPlus, IconSearch, IconBox, IconReceipt } from '@tabler/icons-vue'
 
-const status = ref('')
+const status = ref('AVAILABLE')
 const category = ref('')
 const search = ref('')
 
@@ -18,6 +18,7 @@ const statusOptions = [
   { value: '', label: 'Semua Status' },
   { value: 'AVAILABLE', label: 'Tersedia' },
   { value: 'ON_PROGRESS', label: 'On Progress' },
+  { value: 'INACTIVE', label: 'Nonaktif' },
   { value: 'SOLD', label: 'Terjual' },
 ]
 
@@ -60,6 +61,19 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
     style: 'currency',
     currency: 'USD',
   }).format(value)
+}
+
+const { showError } = useAlert()
+
+const toggleStatus = async (productId: string, event: Event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  try {
+    await $fetch(`/api/products/${productId}/toggle-status`, { method: 'PATCH' })
+    refresh()
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal mengubah status')
+  }
 }
 </script>
 
@@ -139,6 +153,15 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
                 <div :class="['badge badge-sm', getStatusBadge(product.status)]">
                   {{ product.status }}
                 </div>
+                <label v-if="product.status !== 'SOLD'" class="swap swap-rotate ml-2" @click.prevent.stop>
+                  <input 
+                    type="checkbox" 
+                    :checked="product.status === 'AVAILABLE'"
+                    @change="(e) => toggleStatus(product.id, e)"
+                  />
+                  <span class="swap-on text-success text-xs">ON</span>
+                  <span class="swap-off text-error text-xs">OFF</span>
+                </label>
               </div>
             </div>
 

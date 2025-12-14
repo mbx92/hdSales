@@ -19,7 +19,7 @@ interface Sparepart {
 const search = ref('')
 const debouncedSearch = refDebounced(search, 300)
 const category = ref('ALL')
-const status = ref('ALL')
+const status = ref('ACTIVE')
 const { showSuccess, showError } = useAlert()
 
 const { data: spareparts, pending, refresh } = await useFetch<Sparepart[]>('/api/spareparts', {
@@ -86,6 +86,15 @@ const getCategoryBadge = (cat: string) => {
     case 'ACCESSORY': return 'badge-secondary'
     case 'APPAREL': return 'badge-accent'
     default: return 'badge-ghost'
+  }
+}
+
+const toggleStatus = async (item: Sparepart) => {
+  try {
+    await $fetch(`/api/spareparts/${item.id}/toggle-status`, { method: 'PATCH' })
+    refresh()
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal mengubah status')
   }
 }
 </script>
@@ -201,8 +210,15 @@ const getCategoryBadge = (cat: string) => {
                   {{ formatCurrency(item.sellingPrice, item.currency) }}
                 </td>
                 <td>
-                  <div :class="['badge badge-xs', item.status === 'ACTIVE' ? 'badge-success' : 'badge-ghost']"></div>
-                  <span class="ml-2 text-xs">{{ item.status }}</span>
+                  <label class="swap">
+                    <input 
+                      type="checkbox" 
+                      :checked="item.status === 'ACTIVE'"
+                      @change="toggleStatus(item)"
+                    />
+                    <span class="swap-on badge badge-success badge-sm">ACTIVE</span>
+                    <span class="swap-off badge badge-ghost badge-sm">INACTIVE</span>
+                  </label>
                 </td>
                 <td>
                   <div class="flex items-center gap-1">

@@ -3,7 +3,7 @@ import { IconPlus, IconSearch, IconMotorbike } from '@tabler/icons-vue'
 
 const route = useRoute()
 
-const status = ref(route.query.status as string || '')
+const status = ref(route.query.status as string || 'AVAILABLE')
 const search = ref('')
 const page = ref(1)
 
@@ -21,6 +21,7 @@ const statusOptions = [
   { value: '', label: 'Semua Status' },
   { value: 'AVAILABLE', label: 'Tersedia' },
   { value: 'ON_PROGRESS', label: 'On Progress' },
+  { value: 'INACTIVE', label: 'Nonaktif' },
   { value: 'SOLD', label: 'Terjual' },
 ]
 
@@ -45,6 +46,19 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
     style: 'currency',
     currency: 'USD',
   }).format(value)
+}
+
+const { showError } = useAlert()
+
+const toggleStatus = async (motorcycleId: string, event: Event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  try {
+    await $fetch(`/api/motorcycles/${motorcycleId}/toggle-status`, { method: 'PATCH' })
+    refresh()
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal mengubah status')
+  }
 }
 </script>
 
@@ -112,8 +126,19 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
               </h2>
               <p class="text-sm text-base-content/60">{{ motorcycle.brand }} • {{ motorcycle.year }}</p>
             </div>
-            <div :class="['badge', getStatusBadge(motorcycle.status)]">
-              {{ motorcycle.status }}
+            <div class="flex items-center gap-2">
+              <div :class="['badge', getStatusBadge(motorcycle.status)]">
+                {{ motorcycle.status }}
+              </div>
+              <label v-if="motorcycle.status !== 'SOLD'" class="swap swap-rotate" @click.prevent.stop>
+                <input 
+                  type="checkbox" 
+                  :checked="motorcycle.status === 'AVAILABLE'"
+                  @change="(e) => toggleStatus(motorcycle.id, e)"
+                />
+                <span class="swap-on text-success text-xs">ON</span>
+                <span class="swap-off text-error text-xs">OFF</span>
+              </label>
             </div>
           </div>
 

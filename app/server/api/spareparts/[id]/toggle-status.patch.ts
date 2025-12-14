@@ -1,0 +1,27 @@
+import prisma from '~/server/utils/prisma'
+
+export default defineEventHandler(async (event) => {
+    const id = event.context.params?.id
+
+    if (!id) {
+        throw createError({ statusCode: 400, message: 'ID required' })
+    }
+
+    const sparepart = await prisma.sparepart.findUnique({
+        where: { id },
+        select: { status: true }
+    })
+
+    if (!sparepart) {
+        throw createError({ statusCode: 404, message: 'Sparepart tidak ditemukan' })
+    }
+
+    const newStatus = sparepart.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+
+    const updated = await prisma.sparepart.update({
+        where: { id },
+        data: { status: newStatus }
+    })
+
+    return updated
+})
