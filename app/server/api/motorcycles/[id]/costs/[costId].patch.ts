@@ -53,6 +53,29 @@ export default defineEventHandler(async (event) => {
         },
     })
 
+    // Update associated cashflow record if exists
+    if (existingCost.cashFlowId) {
+        // Get motorcycle info for description
+        const motorcycle = await prisma.motorcycle.findUnique({
+            where: { id: motorcycleId },
+        })
+        const motorName = motorcycle ? `${motorcycle.brand} ${motorcycle.customModel || motorcycle.model}` : ''
+        const newDescription = body.description || existingCost.description
+
+        await prisma.cashFlow.update({
+            where: { id: existingCost.cashFlowId },
+            data: {
+                amount: newAmount,
+                currency: newCurrency,
+                exchangeRate: newExchangeRate,
+                amountIdr: newAmountIdr,
+                description: motorName ? `${motorName}: ${newDescription}` : newDescription,
+                category: body.component || existingCost.component,
+                transactionDate: body.transactionDate ? new Date(body.transactionDate) : existingCost.transactionDate,
+            },
+        })
+    }
+
     // Recalculate motorcycle totalCost
     const allCosts = await prisma.cost.findMany({
         where: { motorcycleId },

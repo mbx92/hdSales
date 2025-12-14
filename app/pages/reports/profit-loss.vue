@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconTrendingUp, IconTrendingDown, IconReceipt, IconFilter, IconChevronDown, IconChevronUp, IconFileSpreadsheet, IconFileTypePdf } from '@tabler/icons-vue'
+import { IconTrendingUp, IconTrendingDown, IconReceipt, IconFilter, IconChevronDown, IconChevronUp, IconFileSpreadsheet, IconFileTypePdf, IconMotorbike, IconBox } from '@tabler/icons-vue'
 import { useExport } from '~/composables/useExport'
 
 const { exportPnLToExcel, exportPnLToPDF } = useExport()
@@ -76,7 +76,7 @@ const handleExportExcel = async () => {
     if (!report.value) return
     exportingExcel.value = true
     try {
-        await exportPnLToExcel(report.value.salesDetails, report.value.summary, report.value.period)
+        await exportPnLToExcel(report.value.salesDetails, report.value.summary, report.value.period, report.value.categoryBreakdown)
     } catch (error) {
         console.error('Export Excel error:', error)
         showError('Gagal export Excel')
@@ -89,7 +89,7 @@ const handleExportPDF = async () => {
     if (!report.value) return
     exportingPDF.value = true
     try {
-        await exportPnLToPDF(report.value.salesDetails, report.value.summary, report.value.period)
+        await exportPnLToPDF(report.value.salesDetails, report.value.summary, report.value.period, report.value.categoryBreakdown)
     } catch (error) {
         console.error('Export PDF error:', error)
         showError('Gagal export PDF')
@@ -190,12 +190,92 @@ const handleExportPDF = async () => {
                 </div>
             </div>
 
+            <!-- P&L Statement Card -->
+            <div class="card bg-base-200 border border-base-300">
+                <div class="card-body">
+                    <h2 class="card-title text-lg mb-4">Laporan Laba Rugi</h2>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <tbody>
+                                <!-- Operating Revenue -->
+                                <tr class="bg-base-300/50">
+                                    <td class="font-bold">PENDAPATAN OPERASIONAL</td>
+                                    <td class="text-right"></td>
+                                </tr>
+                                <tr>
+                                    <td class="pl-6">Penjualan Motor</td>
+                                    <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalRevenue) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="pl-6">Penjualan Produk</td>
+                                    <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.product.totalRevenue) }}</td>
+                                </tr>
+                                <tr class="border-t border-base-300">
+                                    <td class="font-semibold">Total Pendapatan Operasional</td>
+                                    <td class="text-right font-mono font-bold text-success">{{ formatCurrency(report.summary.totalRevenue) }}</td>
+                                </tr>
+                                
+                                <!-- Empty row separator -->
+                                <tr><td colspan="2" class="py-2"></td></tr>
+                                
+                                <!-- HPP -->
+                                <tr class="bg-base-300/50">
+                                    <td class="font-bold">HARGA POKOK PENJUALAN (HPP)</td>
+                                    <td class="text-right"></td>
+                                </tr>
+                                <tr>
+                                    <td class="pl-6">HPP Motor</td>
+                                    <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalHPP) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="pl-6">HPP Produk</td>
+                                    <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.product.totalHPP) }}</td>
+                                </tr>
+                                <tr class="border-t border-base-300">
+                                    <td class="font-semibold">Total HPP</td>
+                                    <td class="text-right font-mono font-bold text-error">{{ formatCurrency(report.summary.totalHPP) }}</td>
+                                </tr>
+                                
+                                <!-- Empty row separator -->
+                                <tr><td colspan="2" class="py-2"></td></tr>
+                                
+                                <!-- Gross Profit -->
+                                <tr class="bg-success/20">
+                                    <td class="font-bold">LABA KOTOR (GROSS PROFIT)</td>
+                                    <td :class="['text-right font-mono font-bold text-lg', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
+                                        {{ formatCurrency(report.summary.grossProfit) }}
+                                    </td>
+                                </tr>
+                                
+                                <!-- Empty row separator -->
+                                <tr><td colspan="2" class="py-2"></td></tr>
+                                
+                                <!-- Net Profit -->
+                                <tr class="bg-primary/20">
+                                    <td class="font-bold">LABA BERSIH (NET PROFIT)</td>
+                                    <td :class="['text-right font-mono font-bold text-lg', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
+                                        {{ formatCurrency(report.summary.grossProfit) }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="font-semibold">Margin Laba</td>
+                                    <td :class="['text-right font-mono font-bold', report.summary.profitMargin >= 0 ? 'text-success' : 'text-error']">
+                                        {{ report.summary.profitMargin.toFixed(1) }}%
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Category Breakdown -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Motorcycle Stats -->
                 <div class="card bg-base-200 border border-base-300">
                     <div class="card-body">
-                        <h2 class="card-title text-lg">🏍️ Penjualan Motor</h2>
+                        <h2 class="card-title text-lg"><IconMotorbike class="w-5 h-5" :stroke-width="1.5" /> Penjualan Motor</h2>
                         <div class="space-y-3 mt-2">
                             <div class="flex justify-between">
                                 <span class="text-base-content/60">Jumlah Terjual</span>
@@ -223,7 +303,7 @@ const handleExportPDF = async () => {
                 <!-- Product Stats -->
                 <div class="card bg-base-200 border border-base-300">
                     <div class="card-body">
-                        <h2 class="card-title text-lg">📦 Penjualan Product</h2>
+                        <h2 class="card-title text-lg"><IconBox class="w-5 h-5" :stroke-width="1.5" /> Penjualan Product</h2>
                         <div class="space-y-3 mt-2">
                             <div class="flex justify-between">
                                 <span class="text-base-content/60">Jumlah Terjual</span>

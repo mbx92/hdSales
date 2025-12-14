@@ -24,6 +24,22 @@ interface PnLSummary {
     totalTransactions: number
 }
 
+interface PnLCategoryBreakdown {
+    motorcycle: {
+        count: number
+        totalRevenue: number
+        totalHPP: number
+        totalProfit: number
+    }
+    product: {
+        count: number
+        totalRevenue: number
+        totalHPP: number
+        totalProfit: number
+        categories?: Record<string, { count: number; revenue: number; hpp: number; profit: number }>
+    }
+}
+
 interface PnLSaleDetail {
     id: string
     invoiceNumber: string
@@ -267,10 +283,68 @@ export function useExport() {
     }
 
     // PnL Export Functions
-    const exportPnLToExcel = async (salesDetails: PnLSaleDetail[], summary: PnLSummary, period: { startDate: string, endDate: string }) => {
+    const exportPnLToExcel = async (
+        salesDetails: PnLSaleDetail[],
+        summary: PnLSummary,
+        period: { startDate: string, endDate: string },
+        categoryBreakdown?: PnLCategoryBreakdown
+    ) => {
         const XLSX = await import('xlsx')
+        const wb = XLSX.utils.book_new()
 
-        const data = salesDetails.map((s, index) => ({
+        // Sheet 1: Laporan Laba Rugi (P&L Statement)
+        const pnlData: any[][] = [
+            ['LAPORAN LABA RUGI (PROFIT & LOSS)'],
+            [`Periode: ${formatDate(period.startDate)} - ${formatDate(period.endDate)}`],
+            [''],
+            ['AKUN', 'JUMLAH'],
+            [''],
+            ['PENDAPATAN OPERASIONAL', ''],
+        ]
+
+        // Revenue breakdown
+        if (categoryBreakdown) {
+            pnlData.push(['  Penjualan Motor', categoryBreakdown.motorcycle.totalRevenue])
+            pnlData.push(['  Penjualan Produk', categoryBreakdown.product.totalRevenue])
+        }
+        pnlData.push(['Total Pendapatan Operasional', summary.totalRevenue])
+        pnlData.push([''])
+
+        // Cost of Goods Sold
+        pnlData.push(['HARGA POKOK PENJUALAN (HPP)', ''])
+        if (categoryBreakdown) {
+            pnlData.push(['  HPP Motor', categoryBreakdown.motorcycle.totalHPP])
+            pnlData.push(['  HPP Produk', categoryBreakdown.product.totalHPP])
+        }
+        pnlData.push(['Total HPP', summary.totalHPP])
+        pnlData.push([''])
+
+        // Gross Profit
+        pnlData.push(['LABA KOTOR', summary.grossProfit])
+        pnlData.push([''])
+
+        // Profit margin
+        pnlData.push(['Margin Laba (%)', `${summary.profitMargin?.toFixed(1)}%`])
+        pnlData.push([''])
+
+        // Summary by category
+        pnlData.push([''])
+        pnlData.push(['RINGKASAN PER KATEGORI', ''])
+        if (categoryBreakdown) {
+            pnlData.push(['Motor', ''])
+            pnlData.push(['  Jumlah Transaksi', categoryBreakdown.motorcycle.count])
+            pnlData.push(['  Total Profit', categoryBreakdown.motorcycle.totalProfit])
+            pnlData.push(['Produk', ''])
+            pnlData.push(['  Jumlah Transaksi', categoryBreakdown.product.count])
+            pnlData.push(['  Total Profit', categoryBreakdown.product.totalProfit])
+        }
+
+        const pnlWs = XLSX.utils.aoa_to_sheet(pnlData)
+        pnlWs['!cols'] = [{ wch: 40 }, { wch: 20 }]
+        XLSX.utils.book_append_sheet(wb, pnlWs, 'Laba Rugi')
+
+        // Sheet 2: Detail Transaksi
+        const detailData = salesDetails.map((s, index) => ({
             'No': index + 1,
             'Invoice': s.invoiceNumber,
             'Tanggal': formatDate(s.saleDate),
@@ -281,39 +355,16 @@ export function useExport() {
             'HPP': s.hpp,
             'Profit': s.profit,
             'Margin (%)': s.profitMargin?.toFixed(1),
-            'Pembayaran': s.paymentMethod,
         }))
 
-        // Add summary
-        data.push({} as any)
-        data.push({
-            'No': '', 'Invoice': '', 'Tanggal': 'RINGKASAN', 'Tipe': '', 'Nama': '',
-            'Pembeli': '', 'Harga Jual': '', 'HPP': '', 'Profit': '', 'Margin (%)': '', 'Pembayaran': ''
-        } as any)
-        data.push({
-            'No': '', 'Invoice': '', 'Tanggal': 'Total Revenue', 'Tipe': '', 'Nama': '',
-            'Pembeli': '', 'Harga Jual': summary.totalRevenue, 'HPP': '', 'Profit': '', 'Margin (%)': '', 'Pembayaran': ''
-        } as any)
-        data.push({
-            'No': '', 'Invoice': '', 'Tanggal': 'Total HPP', 'Tipe': '', 'Nama': '',
-            'Pembeli': '', 'Harga Jual': '', 'HPP': summary.totalHPP, 'Profit': '', 'Margin (%)': '', 'Pembayaran': ''
-        } as any)
-        data.push({
-            'No': '', 'Invoice': '', 'Tanggal': 'Gross Profit', 'Tipe': '', 'Nama': '',
-            'Pembeli': '', 'Harga Jual': '', 'HPP': '', 'Profit': summary.grossProfit, 'Margin (%)': summary.profitMargin?.toFixed(1), 'Pembayaran': ''
-        } as any)
-
-        const wb = XLSX.utils.book_new()
-
-        // Main PnL sheet
-        const ws = XLSX.utils.json_to_sheet(data)
-        ws['!cols'] = [
+        const detailWs = XLSX.utils.json_to_sheet(detailData)
+        detailWs['!cols'] = [
             { wch: 5 }, { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 30 },
-            { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }
+            { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }
         ]
-        XLSX.utils.book_append_sheet(wb, ws, 'Profit Loss')
+        XLSX.utils.book_append_sheet(wb, detailWs, 'Detail Transaksi')
 
-        // Cost Details sheet
+        // Sheet 3: Detail Biaya
         const costData: any[] = []
         salesDetails.forEach(s => {
             if (s.costBreakdown && s.costBreakdown.length > 0) {
@@ -326,7 +377,7 @@ export function useExport() {
                         'Jumlah': c.amount,
                     })
                 })
-                costData.push({} as any) // Separator
+                costData.push({} as any)
             }
         })
 
@@ -342,56 +393,105 @@ export function useExport() {
         downloadFile(blob, `laporan-pnl-${dateStr}.xlsx`)
     }
 
-    const exportPnLToPDF = async (salesDetails: PnLSaleDetail[], summary: PnLSummary, period: { startDate: string, endDate: string }) => {
+    const exportPnLToPDF = async (
+        salesDetails: PnLSaleDetail[],
+        summary: PnLSummary,
+        period: { startDate: string, endDate: string },
+        categoryBreakdown?: PnLCategoryBreakdown
+    ) => {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
 
-        const doc = new jsPDF('landscape')
+        const doc = new jsPDF('portrait')
+        const pageWidth = doc.internal.pageSize.getWidth()
 
-        doc.setFontSize(18)
+        // Header
+        doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
-        doc.text('LAPORAN PROFIT & LOSS', 148, 15, { align: 'center' })
+        doc.text('LAPORAN LABA RUGI', pageWidth / 2, 15, { align: 'center' })
+        doc.text('(PROFIT & LOSS)', pageWidth / 2, 22, { align: 'center' })
 
-        doc.setFontSize(12)
+        doc.setFontSize(11)
         doc.setFont('helvetica', 'normal')
-        doc.text('HD Sales - Harley Davidson', 148, 22, { align: 'center' })
+        doc.text('HD Sales - Harley Davidson', pageWidth / 2, 30, { align: 'center' })
         doc.setFontSize(10)
-        doc.text(`Periode: ${formatDate(period.startDate)} - ${formatDate(period.endDate)}`, 148, 28, { align: 'center' })
+        doc.text(`Periode: ${formatDate(period.startDate)} - ${formatDate(period.endDate)}`, pageWidth / 2, 36, { align: 'center' })
 
-        // Summary
-        doc.setFontSize(10)
-        doc.text(`Revenue: ${formatCurrency(summary.totalRevenue)}`, 14, 38)
-        doc.text(`HPP: ${formatCurrency(summary.totalHPP)}`, 80, 38)
-        doc.text(`Gross Profit: ${formatCurrency(summary.grossProfit)}`, 140, 38)
-        doc.text(`Margin: ${summary.profitMargin?.toFixed(1)}%`, 210, 38)
+        // P&L Table
+        const pnlTableData: any[][] = []
 
-        const tableData = salesDetails.map((s, i) => [
-            i + 1,
-            s.invoiceNumber,
-            formatDate(s.saleDate),
-            s.type,
-            s.name.length > 25 ? s.name.substring(0, 25) + '...' : s.name,
-            s.buyerName,
-            formatCurrency(s.sellingPrice),
-            formatCurrency(s.hpp),
-            formatCurrency(s.profit),
-            `${s.profitMargin?.toFixed(1)}%`,
-        ])
+        // Operating Revenue section
+        pnlTableData.push([{ content: 'PENDAPATAN OPERASIONAL', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, ''])
+        if (categoryBreakdown) {
+            pnlTableData.push(['   Penjualan Motor', formatCurrency(categoryBreakdown.motorcycle.totalRevenue)])
+            pnlTableData.push(['   Penjualan Produk', formatCurrency(categoryBreakdown.product.totalRevenue)])
+        }
+        pnlTableData.push([{ content: 'Total Pendapatan Operasional', styles: { fontStyle: 'bold' } }, { content: formatCurrency(summary.totalRevenue), styles: { fontStyle: 'bold' } }])
+
+        pnlTableData.push(['', '']) // Separator
+
+        // COGS section
+        pnlTableData.push([{ content: 'HARGA POKOK PENJUALAN (HPP)', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }, ''])
+        if (categoryBreakdown) {
+            pnlTableData.push(['   HPP Motor', formatCurrency(categoryBreakdown.motorcycle.totalHPP)])
+            pnlTableData.push(['   HPP Produk', formatCurrency(categoryBreakdown.product.totalHPP)])
+        }
+        pnlTableData.push([{ content: 'Total HPP', styles: { fontStyle: 'bold' } }, { content: formatCurrency(summary.totalHPP), styles: { fontStyle: 'bold' } }])
+
+        pnlTableData.push(['', '']) // Separator
+
+        // Gross Profit
+        pnlTableData.push([{ content: 'LABA KOTOR (GROSS PROFIT)', styles: { fontStyle: 'bold', fillColor: [200, 230, 200] } }, { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [200, 230, 200] } }])
+
+        pnlTableData.push(['', '']) // Separator
+
+        // Net Profit (same as Gross since no operating expenses)
+        pnlTableData.push([{ content: 'LABA BERSIH (NET PROFIT)', styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }, { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }])
+        pnlTableData.push([{ content: 'Margin Laba', styles: { fontStyle: 'bold' } }, { content: `${summary.profitMargin?.toFixed(1)}%`, styles: { fontStyle: 'bold' } }])
 
         autoTable(doc, {
-            head: [['No', 'Invoice', 'Tanggal', 'Tipe', 'Nama', 'Pembeli', 'Harga Jual', 'HPP', 'Profit', 'Margin']],
-            body: tableData,
+            body: pnlTableData,
             startY: 44,
-            styles: { fontSize: 7, cellPadding: 1.5 },
-            headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [243, 244, 246] },
+            theme: 'plain',
+            styles: { fontSize: 10, cellPadding: 3 },
+            columnStyles: {
+                0: { cellWidth: 120 },
+                1: { cellWidth: 60, halign: 'right' },
+            },
+            didParseCell: (data) => {
+                if (data.row.index === pnlTableData.length - 1 || data.row.index === pnlTableData.length - 2) {
+                    data.cell.styles.lineWidth = 0.5
+                }
+            },
         })
 
+        // Transaction Summary
+        const finalY = (doc as any).lastAutoTable.finalY + 10
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Ringkasan Transaksi', 14, finalY)
+
+        const summaryTableData: any[][] = []
+        if (categoryBreakdown) {
+            summaryTableData.push(['Motor', categoryBreakdown.motorcycle.count + ' transaksi', formatCurrency(categoryBreakdown.motorcycle.totalProfit)])
+            summaryTableData.push(['Produk', categoryBreakdown.product.count + ' transaksi', formatCurrency(categoryBreakdown.product.totalProfit)])
+        }
+        summaryTableData.push([{ content: 'Total', styles: { fontStyle: 'bold' } }, { content: summary.totalTransactions + ' transaksi', styles: { fontStyle: 'bold' } }, { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold' } }])
+
+        autoTable(doc, {
+            head: [['Kategori', 'Jumlah', 'Total Profit']],
+            body: summaryTableData,
+            startY: finalY + 4,
+            styles: { fontSize: 9, cellPadding: 2 },
+            headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+        })
+
+        // Footer
         const pageCount = doc.getNumberOfPages()
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i)
             doc.setFontSize(8)
-            doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} | Hal ${i}/${pageCount}`, 148, doc.internal.pageSize.height - 8, { align: 'center' })
+            doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} | Hal ${i}/${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 8, { align: 'center' })
         }
 
         const dateStr = new Date().toISOString().split('T')[0]

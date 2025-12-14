@@ -53,6 +53,29 @@ export default defineEventHandler(async (event) => {
         },
     })
 
+    // Update associated cashflow record if exists
+    if (existingCost.cashFlowId) {
+        // Get product info for description
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+        })
+        const productName = product?.name || ''
+        const newDescription = body.description || existingCost.description
+
+        await prisma.cashFlow.update({
+            where: { id: existingCost.cashFlowId },
+            data: {
+                amount: newAmount,
+                currency: newCurrency,
+                exchangeRate: newExchangeRate,
+                amountIdr: newAmountIdr,
+                description: productName ? `${productName}: ${newDescription}` : newDescription,
+                category: body.component || existingCost.component,
+                transactionDate: body.transactionDate ? new Date(body.transactionDate) : existingCost.transactionDate,
+            },
+        })
+    }
+
     // Recalculate product totalCost
     const allCosts = await prisma.productCost.findMany({
         where: { productId },
