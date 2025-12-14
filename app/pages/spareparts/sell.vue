@@ -178,7 +178,7 @@ const formatCurrency = (value: number) => {
             </span>
             <span class="text-xs opacity-60">Klik untuk tambah ke keranjang</span>
           </div>
-          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 overflow-y-auto">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 overflow-y-auto">
             <button 
               v-for="product in availableProducts" 
               :key="product.id" 
