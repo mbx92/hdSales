@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconSearch, IconBox } from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconBox, IconReceipt } from '@tabler/icons-vue'
 
 const status = ref('')
 const category = ref('')
@@ -113,62 +113,77 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
 
     <!-- Products Grid -->
     <div v-else-if="data?.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <NuxtLink
+      <div
         v-for="product in data"
         :key="product.id"
-        :to="`/products/${product.id}`"
-        class="card bg-base-200 border border-base-300 card-hover"
+        class="card bg-base-200 border border-base-300"
       >
-        <figure class="px-4 pt-4">
-          <div class="w-full h-48 bg-base-300 rounded-xl flex items-center justify-center">
-            <IconBox class="w-24 h-24 text-base-content/20" :stroke-width="1" />
-          </div>
-        </figure>
+        <NuxtLink :to="`/products/${product.id}`">
+          <figure class="px-4 pt-4">
+            <div class="w-full h-48 bg-base-300 rounded-xl flex items-center justify-center">
+              <IconBox class="w-24 h-24 text-base-content/20" :stroke-width="1" />
+            </div>
+          </figure>
+        </NuxtLink>
         <div class="card-body">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex-1">
-              <h2 class="card-title text-lg line-clamp-1">{{ product.name }}</h2>
-              <p class="text-sm text-base-content/60">{{ product.sku || 'No SKU' }}</p>
-            </div>
-            <div class="flex flex-col gap-1 items-end">
-              <div :class="['badge badge-sm', getCategoryBadge(product.category)]">
-                {{ product.customCategory || product.category }}
+          <NuxtLink :to="`/products/${product.id}`">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <h2 class="card-title text-lg line-clamp-1">{{ product.name }}</h2>
+                <p class="text-sm text-base-content/60">{{ product.sku || 'No SKU' }}</p>
               </div>
-              <div :class="['badge badge-sm', getStatusBadge(product.status)]">
-                {{ product.status }}
+              <div class="flex flex-col gap-1 items-end">
+                <div :class="['badge badge-sm', getCategoryBadge(product.category)]">
+                  {{ product.customCategory || product.category }}
+                </div>
+                <div :class="['badge badge-sm', getStatusBadge(product.status)]">
+                  {{ product.status }}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="grid grid-cols-2 gap-2 mt-3 text-sm">
-            <div>
-              <span class="text-base-content/60">Supplier</span>
-              <p class="truncate">{{ product.supplier || '-' }}</p>
+            <div class="grid grid-cols-2 gap-2 mt-3 text-sm">
+              <div>
+                <span class="text-base-content/60">Supplier</span>
+                <p class="truncate">{{ product.supplier || '-' }}</p>
+              </div>
+              <div>
+                <span class="text-base-content/60">Biaya</span>
+                <p class="font-mono text-xs">{{ product.costs?.length || 0 }} item</p>
+              </div>
             </div>
-            <div>
-              <span class="text-base-content/60">Biaya</span>
-              <p class="font-mono text-xs">{{ product.costs?.length || 0 }} item</p>
-            </div>
-          </div>
 
-          <div class="divider my-2"></div>
+            <div class="divider my-2"></div>
 
-          <div class="flex items-center justify-between">
-            <div>
-              <span class="text-xs text-base-content/60">HPP</span>
-              <p class="font-bold text-primary text-sm">
-                {{ formatCurrency(product.totalCost, product.currency) }}
-              </p>
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs text-base-content/60">HPP</span>
+                <p class="font-bold text-primary text-sm">
+                  {{ formatCurrency(product.totalCost, product.currency) }}
+                </p>
+              </div>
+              <div v-if="product.sellingPrice" class="text-right">
+                <span class="text-xs text-base-content/60">Harga Jual</span>
+                <p class="font-bold text-success text-sm">
+                  {{ formatCurrency(product.sellingPrice, product.currency) }}
+                </p>
+              </div>
             </div>
-            <div v-if="product.sellingPrice" class="text-right">
-              <span class="text-xs text-base-content/60">Harga Jual</span>
-              <p class="font-bold text-success text-sm">
-                {{ formatCurrency(product.sellingPrice, product.currency) }}
-              </p>
-            </div>
+          </NuxtLink>
+
+          <!-- Receipt Button for Sold Products -->
+          <div v-if="product.status === 'SOLD' && product.saleTransaction" class="mt-3 pt-3 border-t border-base-300">
+            <NuxtLink
+              :to="`/sales/product-receipt/${product.saleTransaction.id}`"
+              class="btn btn-primary btn-sm btn-block gap-1"
+              @click.stop
+            >
+              <IconReceipt class="w-4 h-4" :stroke-width="1.5" />
+              Cetak Kwitansi
+            </NuxtLink>
           </div>
         </div>
-      </NuxtLink>
+      </div>
     </div>
 
     <!-- Empty State -->

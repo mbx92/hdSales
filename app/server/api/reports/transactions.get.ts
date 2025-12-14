@@ -71,7 +71,10 @@ export default defineEventHandler(async (event) => {
     const [transactions, motorcycleProfit, sparepartSales] = await Promise.all([
         prisma.cashFlow.findMany({
             where,
-            orderBy: { transactionDate: 'desc' },
+            orderBy: [
+                { createdAt: 'desc' },
+                { id: 'desc' },
+            ],
         }),
         // Get motorcycle profit (sum of margin)
         prisma.saleTransaction.aggregate({

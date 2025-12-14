@@ -1,4 +1,4 @@
-import prisma from '../../utils/prisma'
+import prisma from '../../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
@@ -10,10 +10,10 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const sale = await prisma.saleTransaction.findUnique({
+    const sale = await prisma.productSale.findUnique({
         where: { id },
         include: {
-            motorcycle: {
+            product: {
                 include: {
                     costs: {
                         orderBy: { transactionDate: 'desc' },
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     if (!sale) {
         throw createError({
             statusCode: 404,
-            message: 'Penjualan tidak ditemukan',
+            message: 'Penjualan produk tidak ditemukan',
         })
     }
 

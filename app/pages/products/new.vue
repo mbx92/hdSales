@@ -50,7 +50,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="max-w-4xl mx-auto space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
       <NuxtLink to="/products" class="btn btn-ghost btn-square">

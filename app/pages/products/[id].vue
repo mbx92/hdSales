@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconArrowLeft, IconChevronDown, IconCash, IconTrash, IconPlus, IconInfoCircle, IconEdit, IconBox } from '@tabler/icons-vue'
+import { IconArrowLeft, IconChevronDown, IconCash, IconTrash, IconPlus, IconInfoCircle, IconEdit, IconBox, IconReceipt } from '@tabler/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -448,7 +448,16 @@ const deleteProduct = async () => {
       <!-- Sale Transaction -->
       <div v-if="product.saleTransaction" class="card bg-success/10 border border-success/20">
         <div class="card-body">
-          <h2 class="card-title text-lg text-success">Transaksi Penjualan</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="card-title text-lg text-success">Transaksi Penjualan</h2>
+            <NuxtLink
+              :to="`/sales/product-receipt/${product.saleTransaction.id}`"
+              class="btn btn-primary btn-sm gap-1"
+            >
+              <IconReceipt class="w-4 h-4" :stroke-width="1.5" />
+              Cetak Kwitansi
+            </NuxtLink>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <div>
               <span class="text-base-content/60">Pembeli</span>

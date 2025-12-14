@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
             currency: body.currency,
             exchangeRate,
             amountIdr,
-            description: body.description,
+            description: `${motorcycle.brand} ${motorcycle.model}: ${body.description}`,
             category: body.component,
             transactionDate: body.transactionDate ? new Date(body.transactionDate) : new Date(),
         },

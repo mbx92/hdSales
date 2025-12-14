@@ -56,7 +56,10 @@ export default defineEventHandler(async (event) => {
                 },
             },
         },
-        orderBy: { saleDate: 'desc' },
+        orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+        ],
     })
 
     // Get product sales with costs
@@ -83,7 +86,10 @@ export default defineEventHandler(async (event) => {
                 },
             },
         },
-        orderBy: { saleDate: 'desc' },
+        orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+        ],
     })
 
     // Calculate category breakdown
@@ -131,6 +137,7 @@ export default defineEventHandler(async (event) => {
             name: `${s.motorcycle.brand} ${s.motorcycle.customModel || s.motorcycle.model} ${s.motorcycle.year}`,
             buyerName: s.buyerName,
             saleDate: s.saleDate,
+            createdAt: s.createdAt,
             sellingPrice: s.sellingPriceIdr,
             hpp: s.totalCost,
             profit: s.profit,
@@ -150,6 +157,7 @@ export default defineEventHandler(async (event) => {
             category: s.product.customCategory || s.product.category,
             buyerName: s.buyerName,
             saleDate: s.saleDate,
+            createdAt: s.createdAt,
             sellingPrice: s.sellingPriceIdr,
             hpp: s.totalCost,
             profit: s.profit,
@@ -161,7 +169,7 @@ export default defineEventHandler(async (event) => {
                 amount: c.amountIdr,
             })),
         })),
-    ].sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
     return {
         period: {

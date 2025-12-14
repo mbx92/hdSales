@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
                 where,
                 skip,
                 take: limit,
-                orderBy: { saleDate: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 include: {
                     motorcycle: {
                         select: {
@@ -71,7 +71,7 @@ export default defineEventHandler(async (event) => {
                 where,
                 skip,
                 take: limit,
-                orderBy: { saleDate: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 include: {
                     product: {
                         select: {
@@ -113,7 +113,7 @@ export default defineEventHandler(async (event) => {
     const [motorcycleSales, sparepartSales, motorcycleTotal, sparepartTotal] = await Promise.all([
         prisma.saleTransaction.findMany({
             where: motorcycleWhere,
-            orderBy: { saleDate: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             include: {
                 motorcycle: {
                     select: {
@@ -129,7 +129,7 @@ export default defineEventHandler(async (event) => {
         }),
         prisma.sparepartSale.findMany({
             where: sparepartWhere,
-            orderBy: { saleDate: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             include: {
                 items: {
                     include: {
@@ -148,7 +148,7 @@ export default defineEventHandler(async (event) => {
     const combined = [
         ...motorcycleSales.map(sale => ({ ...sale, type: 'motorcycle' })),
         ...sparepartSales.map(sale => ({ ...sale, type: 'sparepart' }))
-    ].sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
     // Paginate combined results
     const paginatedData = combined.slice(skip, skip + limit)

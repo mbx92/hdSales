@@ -1,10 +1,10 @@
 import prisma from './prisma'
 
-type InvoicePrefix = 'MTR' | 'PRD' | 'SPR'
+type InvoicePrefix = 'DHD' | 'PRD' | 'SPR'
 
 /**
  * Generate unique invoice number with race-condition protection
- * Format: PREFIX-YYMM-NNNN (e.g. MTR-2312-0001)
+ * Format: PREFIX-YYMM-NNNN (e.g. DHD-2312-0001)
  * 
  * Uses Prisma $transaction with upsert to atomically increment counter
  */
@@ -49,7 +49,7 @@ export async function generateInvoiceNumber(
         }
     })
 
-    // Format: MTR-2312-0001
+    // Format: DHD-2312-0001
     const sequence = counter.lastNumber.toString().padStart(4, '0')
     return `${prefix}-${yearShort}${monthStr}-${sequence}`
 }

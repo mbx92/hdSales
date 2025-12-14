@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { IconTrendingUp, IconTrendingDown, IconReceipt, IconFilter, IconChevronDown, IconChevronUp } from '@tabler/icons-vue'
+import { IconTrendingUp, IconTrendingDown, IconReceipt, IconFilter, IconChevronDown, IconChevronUp, IconFileSpreadsheet, IconFileTypePdf } from '@tabler/icons-vue'
+import { useExport } from '~/composables/useExport'
+
+const { exportPnLToExcel, exportPnLToPDF } = useExport()
+const { showError } = useAlert()
 
 const filterDateRange = ref('month')
 const customStartDate = ref('')
 const customEndDate = ref('')
 const expandedRows = ref<Set<string>>(new Set())
+const exportingExcel = ref(false)
+const exportingPDF = ref(false)
 
 const dateRangeOptions = [
     { value: 'month', label: 'Bulan Ini' },
@@ -65,6 +71,32 @@ const toggleAllRows = () => {
         })
     }
 }
+
+const handleExportExcel = async () => {
+    if (!report.value) return
+    exportingExcel.value = true
+    try {
+        await exportPnLToExcel(report.value.salesDetails, report.value.summary, report.value.period)
+    } catch (error) {
+        console.error('Export Excel error:', error)
+        showError('Gagal export Excel')
+    } finally {
+        exportingExcel.value = false
+    }
+}
+
+const handleExportPDF = async () => {
+    if (!report.value) return
+    exportingPDF.value = true
+    try {
+        await exportPnLToPDF(report.value.salesDetails, report.value.summary, report.value.period)
+    } catch (error) {
+        console.error('Export PDF error:', error)
+        showError('Gagal export PDF')
+    } finally {
+        exportingPDF.value = false
+    }
+}
 </script>
 
 <template>
@@ -75,9 +107,19 @@ const toggleAllRows = () => {
                 <h1 class="text-3xl font-bold">Laporan Profit & Loss</h1>
                 <p class="text-base-content/60">Analisis pendapatan dan keuntungan</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <NuxtLink to="/reports" class="btn btn-outline btn-sm">Transaksi</NuxtLink>
                 <NuxtLink to="/reports/inventory" class="btn btn-outline btn-sm">Inventory</NuxtLink>
+                <button @click="handleExportExcel" class="btn btn-outline btn-sm gap-1" :disabled="!report?.salesDetails?.length || exportingExcel">
+                    <span v-if="exportingExcel" class="loading loading-spinner loading-xs"></span>
+                    <IconFileSpreadsheet v-else class="w-4 h-4" :stroke-width="1.5" />
+                    Excel
+                </button>
+                <button @click="handleExportPDF" class="btn btn-primary btn-sm gap-1" :disabled="!report?.salesDetails?.length || exportingPDF">
+                    <span v-if="exportingPDF" class="loading loading-spinner loading-xs"></span>
+                    <IconFileTypePdf v-else class="w-4 h-4" :stroke-width="1.5" />
+                    PDF
+                </button>
             </div>
         </div>
 

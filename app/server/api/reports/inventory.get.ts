@@ -9,7 +9,10 @@ export default defineEventHandler(async () => {
         include: {
             costs: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+        ],
     })
 
     // Get products that are not sold
@@ -20,7 +23,10 @@ export default defineEventHandler(async () => {
         include: {
             costs: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+        ],
     })
 
     // Calculate totals for motorcycles

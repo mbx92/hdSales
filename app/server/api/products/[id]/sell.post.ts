@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
 
     // Generate invoice number
     const saleDate = body.saleDate ? new Date(body.saleDate) : new Date()
-    const invoiceNumber = await generateInvoiceNumber('PRD', saleDate)
+    const invoiceNumber = await generateInvoiceNumber('DHD', saleDate)
 
     // Convert selling price to IDR
     const { amountIdr: sellingPriceIdr, exchangeRate } = await convertToIdr(

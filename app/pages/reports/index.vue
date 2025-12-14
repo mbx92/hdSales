@@ -116,15 +116,15 @@ const handleExportPDF = async () => {
                 <NuxtLink to="/reports/inventory" class="btn btn-outline btn-sm">
                     Inventory
                 </NuxtLink>
-                <button @click="handleExportExcel" class="btn btn-outline gap-2" :disabled="!report?.data?.length || exportingExcel">
-                    <span v-if="exportingExcel" class="loading loading-spinner loading-sm"></span>
-                    <IconFileSpreadsheet v-else class="w-5 h-5" :stroke-width="1.5" />
-                    Export Excel
+                <button @click="handleExportExcel" class="btn btn-outline btn-sm gap-1" :disabled="!report?.data?.length || exportingExcel">
+                    <span v-if="exportingExcel" class="loading loading-spinner loading-xs"></span>
+                    <IconFileSpreadsheet v-else class="w-4 h-4" :stroke-width="1.5" />
+                    Excel
                 </button>
-                <button @click="handleExportPDF" class="btn btn-primary gap-2" :disabled="!report?.data?.length || exportingPDF">
-                    <span v-if="exportingPDF" class="loading loading-spinner loading-sm"></span>
-                    <IconFileTypePdf v-else class="w-5 h-5" :stroke-width="1.5" />
-                    Export PDF
+                <button @click="handleExportPDF" class="btn btn-primary btn-sm gap-1" :disabled="!report?.data?.length || exportingPDF">
+                    <span v-if="exportingPDF" class="loading loading-spinner loading-xs"></span>
+                    <IconFileTypePdf v-else class="w-4 h-4" :stroke-width="1.5" />
+                    PDF
                 </button>
             </div>
         </div>

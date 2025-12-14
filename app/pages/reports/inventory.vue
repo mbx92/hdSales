@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { IconBox, IconMotorbike, IconBuildingWarehouse, IconCurrencyDollar } from '@tabler/icons-vue'
+import { IconBox, IconMotorbike, IconBuildingWarehouse, IconCurrencyDollar, IconFileSpreadsheet, IconFileTypePdf } from '@tabler/icons-vue'
+import { useExport } from '~/composables/useExport'
+
+const { exportInventoryToExcel, exportInventoryToPDF } = useExport()
+const { showError } = useAlert()
 
 const { data: report, pending } = await useFetch('/api/reports/inventory')
+
+const exportingExcel = ref(false)
+const exportingPDF = ref(false)
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -40,6 +47,32 @@ const getStatusLabel = (status: string) => {
             return status
     }
 }
+
+const handleExportExcel = async () => {
+    if (!report.value) return
+    exportingExcel.value = true
+    try {
+        await exportInventoryToExcel(report.value.motorcycles, report.value.products, report.value.summary)
+    } catch (error) {
+        console.error('Export Excel error:', error)
+        showError('Gagal export Excel')
+    } finally {
+        exportingExcel.value = false
+    }
+}
+
+const handleExportPDF = async () => {
+    if (!report.value) return
+    exportingPDF.value = true
+    try {
+        await exportInventoryToPDF(report.value.motorcycles, report.value.products, report.value.summary)
+    } catch (error) {
+        console.error('Export PDF error:', error)
+        showError('Gagal export PDF')
+    } finally {
+        exportingPDF.value = false
+    }
+}
 </script>
 
 <template>
@@ -50,9 +83,21 @@ const getStatusLabel = (status: string) => {
                 <h1 class="text-3xl font-bold">Laporan Inventory Asset</h1>
                 <p class="text-base-content/60">Daftar semua aset motor dan product yang belum terjual</p>
             </div>
-            <NuxtLink to="/reports/profit-loss" class="btn btn-outline">
-                Lihat Profit & Loss
-            </NuxtLink>
+            <div class="flex flex-wrap gap-2">
+                <NuxtLink to="/reports/profit-loss" class="btn btn-outline btn-sm">
+                    Lihat Profit & Loss
+                </NuxtLink>
+                <button @click="handleExportExcel" class="btn btn-outline btn-sm gap-1" :disabled="!report?.summary?.totalAssets || exportingExcel">
+                    <span v-if="exportingExcel" class="loading loading-spinner loading-xs"></span>
+                    <IconFileSpreadsheet v-else class="w-4 h-4" :stroke-width="1.5" />
+                    Excel
+                </button>
+                <button @click="handleExportPDF" class="btn btn-primary btn-sm gap-1" :disabled="!report?.summary?.totalAssets || exportingPDF">
+                    <span v-if="exportingPDF" class="loading loading-spinner loading-xs"></span>
+                    <IconFileTypePdf v-else class="w-4 h-4" :stroke-width="1.5" />
+                    PDF
+                </button>
+            </div>
         </div>
 
         <!-- Loading -->

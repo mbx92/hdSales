@@ -271,26 +271,31 @@ const kpiCards = computed(() => [
     <div class="card bg-base-200 border border-base-300">
       <div class="card-body">
         <h2 class="card-title mb-4">Quick Actions</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <NuxtLink to="/motorcycles/create" class="btn btn-outline btn-primary">
-            <IconPlus class="w-5 h-5" :stroke-width="1.5" />
-            Tambah Motor
+        <div class="flex flex-wrap gap-2">
+          <NuxtLink to="/motorcycles/create" class="btn btn-outline btn-primary btn-sm sm:btn-md flex-1 sm:flex-none min-w-[140px]">
+            <IconPlus class="w-4 h-4 sm:w-5 sm:h-5" :stroke-width="1.5" />
+            <span class="hidden sm:inline">Tambah Motor</span>
+            <span class="sm:hidden">+ Motor</span>
           </NuxtLink>
-          <NuxtLink to="/motorcycles?status=AVAILABLE" class="btn btn-outline btn-success">
-            <IconCircleCheck class="w-5 h-5" :stroke-width="1.5" />
-            Motor Ready
+          <NuxtLink to="/motorcycles?status=AVAILABLE" class="btn btn-outline btn-success btn-sm sm:btn-md flex-1 sm:flex-none min-w-[140px]">
+            <IconCircleCheck class="w-4 h-4 sm:w-5 sm:h-5" :stroke-width="1.5" />
+            <span class="hidden sm:inline">Motor Ready</span>
+            <span class="sm:hidden">Ready</span>
           </NuxtLink>
-          <NuxtLink to="/sales" class="btn btn-outline btn-info">
-            <IconClipboardList class="w-5 h-5" :stroke-width="1.5" />
-            Riwayat Sales
+          <NuxtLink to="/sales" class="btn btn-outline btn-info btn-sm sm:btn-md flex-1 sm:flex-none min-w-[140px]">
+            <IconClipboardList class="w-4 h-4 sm:w-5 sm:h-5" :stroke-width="1.5" />
+            <span class="hidden sm:inline">Riwayat Sales</span>
+            <span class="sm:hidden">Sales</span>
           </NuxtLink>
-          <NuxtLink to="/cashflow" class="btn btn-outline btn-warning">
-            <IconChartBar class="w-5 h-5" :stroke-width="1.5" />
-            Laporan Cash
+          <NuxtLink to="/cashflow" class="btn btn-outline btn-warning btn-sm sm:btn-md flex-1 sm:flex-none min-w-[140px]">
+            <IconChartBar class="w-4 h-4 sm:w-5 sm:h-5" :stroke-width="1.5" />
+            <span class="hidden sm:inline">Laporan Cash</span>
+            <span class="sm:hidden">Cash</span>
           </NuxtLink>
-          <NuxtLink to="/reports/profit-loss" class="btn btn-outline btn-secondary">
-            <IconReportAnalytics class="w-5 h-5" :stroke-width="1.5" />
-            Profit & Loss
+          <NuxtLink to="/reports/profit-loss" class="btn btn-outline btn-secondary btn-sm sm:btn-md flex-1 sm:flex-none min-w-[140px]">
+            <IconReportAnalytics class="w-4 h-4 sm:w-5 sm:h-5" :stroke-width="1.5" />
+            <span class="hidden sm:inline">Profit & Loss</span>
+            <span class="sm:hidden">P&L</span>
           </NuxtLink>
         </div>
       </div>

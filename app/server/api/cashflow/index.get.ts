@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
             where,
             skip,
             take: limit,
-            orderBy: { transactionDate: 'desc' },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         }),
         prisma.cashFlow.count({ where }),
     ])
