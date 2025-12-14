@@ -183,7 +183,7 @@ const formatCurrency = (value: number) => {
               v-for="product in availableProducts" 
               :key="product.id" 
               @click="addToCart(product)"
-              class="card bg-base-100 border border-base-300 hover:border-primary hover:shadow-lg transition-all cursor-pointer"
+              class="card bg-base-100 border border-base-300 hover:border-primary hover:shadow-lg transition-all cursor-pointer min-w-[100px]"
             >
               <div class="card-body p-3 items-center text-center">
                 <div class="avatar placeholder mb-1">
