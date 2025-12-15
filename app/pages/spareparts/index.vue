@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconSearch, IconPlus, IconFilter, IconAlertTriangle, IconPackage, IconTag, IconAdjustments, IconInfinity } from '@tabler/icons-vue'
+import { IconSearch, IconPlus, IconFilter, IconAlertTriangle, IconPackage, IconTag, IconAdjustments, IconInfinity, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue'
 
 interface Sparepart {
   id: string
@@ -22,6 +22,10 @@ const category = ref('ALL')
 const status = ref('ACTIVE')
 const { showSuccess, showError } = useAlert()
 
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 10
+
 const { data: spareparts, pending, refresh } = await useFetch<Sparepart[]>('/api/spareparts', {
   query: { 
     search: debouncedSearch,
@@ -30,6 +34,30 @@ const { data: spareparts, pending, refresh } = await useFetch<Sparepart[]>('/api
   },
   watch: [debouncedSearch, category, status]
 })
+
+// Reset page when filters change
+watch([debouncedSearch, category, status], () => {
+  currentPage.value = 1
+})
+
+// Paginated data
+const paginatedSpareparts = computed(() => {
+  if (!spareparts.value) return []
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return spareparts.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  if (!spareparts.value) return 1
+  return Math.ceil(spareparts.value.length / itemsPerPage)
+})
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
 
 // Stock adjustment modal
 const showAdjustModal = ref(false)
@@ -175,7 +203,7 @@ const toggleStatus = async (item: Sparepart) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in spareparts" :key="item.id" class="hover">
+              <tr v-for="item in paginatedSpareparts" :key="item.id" class="hover">
                 <td>
                   <div class="flex items-center gap-3">
                     <div class="avatar placeholder">
@@ -238,6 +266,32 @@ const toggleStatus = async (item: Sparepart) => {
               </tr>
             </tbody>
           </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between p-4 border-t border-base-300">
+          <div class="text-sm text-base-content/60">
+            Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, spareparts?.length || 0) }} dari {{ spareparts?.length || 0 }}
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              @click="goToPage(currentPage - 1)" 
+              :disabled="currentPage === 1"
+              class="btn btn-sm btn-ghost"
+            >
+              <IconChevronLeft class="w-4 h-4" />
+            </button>
+            <span class="text-sm">
+              Halaman {{ currentPage }} dari {{ totalPages }}
+            </span>
+            <button 
+              @click="goToPage(currentPage + 1)" 
+              :disabled="currentPage === totalPages"
+              class="btn btn-sm btn-ghost"
+            >
+              <IconChevronRight class="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

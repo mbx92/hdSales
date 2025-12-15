@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconSettings } from '@tabler/icons-vue'
+import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconSettings, IconWallet } from '@tabler/icons-vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -11,6 +11,7 @@ const menuItems = [
   { path: '/products', label: 'Products', icon: IconBox },
   { path: '/spareparts', label: 'Services & Spareparts', icon: IconPackage },
   { path: '/sales', label: 'Penjualan', icon: IconCash },
+  { path: '/expenses', label: 'Expenses', icon: IconWallet },
   { path: '/reports', label: 'Laporan', icon: IconReportAnalytics },
   { path: '/cashflow', label: 'Cash Flow', icon: IconChartBar },
   { path: '/settings/suppliers', label: 'Suppliers', icon: IconTruck },

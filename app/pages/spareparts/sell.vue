@@ -1,10 +1,37 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt, IconBox } from '@tabler/icons-vue'
 
 const router = useRouter()
 const { showError, showWarning } = useAlert()
-const { data: products } = await useFetch('/api/spareparts', {
+
+// Fetch spareparts
+const { data: spareparts } = await useFetch('/api/spareparts', {
   query: { status: 'ACTIVE' }
+})
+
+// Fetch products (only AVAILABLE)
+const { data: productItems } = await useFetch('/api/products', {
+  query: { status: 'AVAILABLE' }
+})
+
+// Combine all items for POS
+const allItems = computed(() => {
+  const sparepartList = (spareparts.value || []).map((p: any) => ({
+    ...p,
+    itemType: 'sparepart',
+    isService: p.category === 'SERVICE',
+    displaySku: p.sku
+  }))
+  
+  const productList = (productItems.value || []).map((p: any) => ({
+    ...p,
+    itemType: 'product',
+    isService: false,
+    stock: 1, // Products are single items
+    displaySku: p.sku || `PRD-${p.id.slice(-4).toUpperCase()}`
+  }))
+  
+  return [...sparepartList, ...productList]
 })
 
 const search = ref('')
@@ -22,24 +49,33 @@ const lastSaleId = ref('')
 const filteredProducts = computed(() => {
   if (!search.value) return []
   const q = search.value.toLowerCase()
-  return products.value?.filter((p: any) => 
+  return allItems.value?.filter((p: any) => 
     p.name.toLowerCase().includes(q) || 
-    p.sku.toLowerCase().includes(q)
+    (p.displaySku && p.displaySku.toLowerCase().includes(q))
   ).slice(0, 5) || [] // Limit 5 suggestions
 })
 
-// Filter products for carousel - include SERVICE items
+// Filter items for carousel - include SERVICE items and available products
 const availableProducts = computed(() => {
-  return products.value?.filter((p: any) => p.stock > 0 || p.category === 'SERVICE').slice(0, 12) || []
+  return allItems.value?.filter((p: any) => 
+    p.stock > 0 || p.category === 'SERVICE'
+  ).slice(0, 12) || []
 })
 
 const addToCart = (product: any) => {
   // Skip stock check for SERVICE category
-  const isService = product.category === 'SERVICE'
+  const isService = product.isService || product.category === 'SERVICE'
+  const isProduct = product.itemType === 'product'
   
-  if (!isService && product.stock <= 0) return showWarning('Stok habis!')
+  // Products can only be added once (single item)
+  if (isProduct) {
+    const existing = cart.value.find(item => item.id === product.id && item.itemType === 'product')
+    if (existing) return showWarning('Produk ini sudah ada di keranjang!')
+  }
   
-  const existing = cart.value.find(item => item.id === product.id)
+  if (!isService && !isProduct && product.stock <= 0) return showWarning('Stok habis!')
+  
+  const existing = cart.value.find(item => item.id === product.id && item.itemType === product.itemType)
   if (existing) {
     if (!isService && existing.quantity >= product.stock) return showWarning('Stok tidak cukup!')
     existing.quantity++
@@ -47,11 +83,12 @@ const addToCart = (product: any) => {
     cart.value.push({
       id: product.id,
       name: product.name,
-      sku: product.sku,
+      sku: product.displaySku || product.sku,
       price: product.sellingPrice,
       quantity: 1,
-      maxStock: isService ? 999 : product.stock,
-      isService
+      maxStock: isService ? 999 : (isProduct ? 1 : product.stock),
+      isService,
+      itemType: product.itemType || 'sparepart'
     })
   }
   search.value = '' // Clear search
@@ -86,7 +123,8 @@ const processSale = async () => {
         items: cart.value.map(item => ({
           id: item.id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          itemType: item.itemType || 'sparepart'
         })),
         customerName: customerName.value,
         customerPhone: customerPhone.value,
@@ -146,17 +184,21 @@ const formatCurrency = (value: number) => {
             <IconSearch class="w-6 h-6 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
             
             <!-- Autocomplete Dropdown -->
-            <div v-if="filteredProducts.length && search" class="absolute top-14 left-0 w-full bg-base-100 border border-base-300 shadow-xl rounded-box overflow-hidden">
+            <div v-if="filteredProducts.length && search" class="absolute top-14 left-0 w-full bg-base-100 border border-base-300 shadow-xl rounded-box overflow-hidden z-50">
               <ul class="menu p-2 w-full">
-                <li v-for="p in filteredProducts" :key="p.id">
+                <li v-for="p in filteredProducts" :key="`${p.itemType}-${p.id}`">
                   <a @click="addToCart(p)" class="flex justify-between items-center py-3">
                     <div>
-                      <div class="font-bold">{{ p.name }}</div>
+                      <div class="font-bold flex items-center gap-2">
+                        {{ p.name }}
+                        <span v-if="p.itemType === 'product'" class="badge badge-warning badge-xs">Produk</span>
+                      </div>
                       <div class="text-xs opacity-60">
-                        {{ p.sku }} • 
+                        {{ p.displaySku || p.sku }} • 
                         <span v-if="p.category === 'SERVICE'" class="text-info">
                           <IconInfinity class="w-3 h-3 inline" /> Unlimited
                         </span>
+                        <span v-else-if="p.itemType === 'product'" class="text-warning">1 unit</span>
                         <span v-else>Stok: {{ p.stock }}</span>
                       </div>
                     </div>
@@ -181,20 +223,27 @@ const formatCurrency = (value: number) => {
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 overflow-y-auto">
             <button 
               v-for="product in availableProducts" 
-              :key="product.id" 
+              :key="`${product.itemType}-${product.id}`" 
               @click="addToCart(product)"
               class="card bg-base-100 border border-base-300 hover:border-primary hover:shadow-lg transition-all cursor-pointer min-w-[100px]"
             >
               <div class="card-body p-3 items-center text-center">
                 <div class="avatar placeholder mb-1">
-                  <div :class="['rounded w-10 h-10', product.category === 'SERVICE' ? 'bg-info/10 text-info' : 'bg-primary/10 text-primary']">
-                    <span class="text-xs font-bold">{{ product.sku.slice(-3) }}</span>
+                  <div :class="['rounded w-10 h-10', 
+                    product.category === 'SERVICE' ? 'bg-info/10 text-info' : 
+                    product.itemType === 'product' ? 'bg-warning/10 text-warning' : 
+                    'bg-primary/10 text-primary'
+                  ]">
+                    <span class="text-xs font-bold">{{ (product.displaySku || product.sku || '').slice(-3) }}</span>
                   </div>
                 </div>
                 <p class="text-xs font-semibold line-clamp-2 min-h-[2rem]">{{ product.name }}</p>
                 <p class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice) }}</p>
                 <p v-if="product.category === 'SERVICE'" class="text-xs text-info flex items-center gap-1">
                   <IconInfinity class="w-3 h-3" /> Jasa
+                </p>
+                <p v-else-if="product.itemType === 'product'" class="text-xs text-warning flex items-center gap-1">
+                  <IconBox class="w-3 h-3" /> Produk
                 </p>
                 <p v-else class="text-xs opacity-60">Stok: {{ product.stock }}</p>
               </div>
@@ -217,9 +266,12 @@ const formatCurrency = (value: number) => {
             Keranjang kosong
           </div>
           
-          <div v-for="(item, index) in cart" :key="index" class="flex items-center justify-between p-3 bg-base-100/50 rounded-lg border border-base-300/50">
+          <div v-for="(item, index) in cart" :key="`${item.itemType}-${item.id}`" class="flex items-center justify-between p-3 bg-base-100/50 rounded-lg border border-base-300/50">
             <div class="flex-1 min-w-0">
-              <div class="font-bold text-sm truncate">{{ item.name }}</div>
+              <div class="font-bold text-sm truncate flex items-center gap-1">
+                {{ item.name }}
+                <span v-if="item.itemType === 'product'" class="badge badge-warning badge-xs">Produk</span>
+              </div>
               <div class="text-xs opacity-60">{{ item.sku }}</div>
             </div>
             <div class="flex items-center gap-2">

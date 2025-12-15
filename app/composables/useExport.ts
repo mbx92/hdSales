@@ -38,6 +38,14 @@ interface PnLCategoryBreakdown {
         totalProfit: number
         categories?: Record<string, { count: number; revenue: number; hpp: number; profit: number }>
     }
+    sparepart?: {
+        count: number
+        itemCount?: number
+        totalRevenue: number
+        totalHPP: number
+        totalProfit: number
+        categories?: Record<string, { count: number; revenue: number; hpp: number; profit: number }>
+    }
 }
 
 interface PnLSaleDetail {
@@ -57,6 +65,22 @@ interface PnLSaleDetail {
         description: string
         amount: number
     }>
+}
+
+interface ExpenseDetail {
+    id: string
+    category: string
+    description: string
+    amount: number
+    transactionDate: string
+    paymentMethod?: string
+}
+
+interface ExpenseData {
+    total: number
+    count: number
+    categories: Record<string, { count: number; total: number }>
+    details: ExpenseDetail[]
 }
 
 interface InventoryAsset {
@@ -327,9 +351,10 @@ export function useExport() {
     // PnL Export Functions
     const exportPnLToExcel = async (
         salesDetails: PnLSaleDetail[],
-        summary: PnLSummary,
+        summary: PnLSummary & { totalExpenses?: number; netProfit?: number; netProfitMargin?: number },
         period: { startDate: string, endDate: string },
-        categoryBreakdown?: PnLCategoryBreakdown
+        categoryBreakdown?: PnLCategoryBreakdown,
+        expenseData?: ExpenseData
     ) => {
         const XLSX = await import('xlsx')
         const wb = XLSX.utils.book_new()
@@ -356,6 +381,14 @@ export function useExport() {
             salesDetails.filter(s => s.type === 'Product').forEach(sale => {
                 pnlData.push(['    ' + sale.name, sale.invoiceNumber, sale.sellingPrice])
             })
+
+            // Sparepart/Service Revenue Details
+            if (categoryBreakdown.sparepart) {
+                pnlData.push(['  Penjualan Service & Sparepart', '', categoryBreakdown.sparepart.totalRevenue])
+                salesDetails.filter(s => s.type === 'Service/Sparepart').forEach(sale => {
+                    pnlData.push(['    ' + sale.name, sale.invoiceNumber, sale.sellingPrice])
+                })
+            }
         }
         pnlData.push(['Total Pendapatan Operasional', '', summary.totalRevenue])
         pnlData.push([''])
@@ -382,6 +415,14 @@ export function useExport() {
                     })
                 }
             })
+
+            // Sparepart/Service HPP
+            if (categoryBreakdown.sparepart) {
+                pnlData.push(['  HPP Service & Sparepart', '', categoryBreakdown.sparepart.totalHPP])
+                salesDetails.filter(s => s.type === 'Service/Sparepart').forEach(sale => {
+                    pnlData.push(['    ' + sale.name, `${sale.costBreakdown?.length || 0} item`, sale.hpp])
+                })
+            }
         }
         pnlData.push(['Total HPP', '', summary.totalHPP])
         pnlData.push([''])
@@ -390,9 +431,21 @@ export function useExport() {
         pnlData.push(['LABA KOTOR', '', summary.grossProfit])
         pnlData.push([''])
 
+        // Operational Expenses
+        if (expenseData && expenseData.details.length > 0) {
+            pnlData.push(['BIAYA OPERASIONAL', '', ''])
+            Object.entries(expenseData.categories).forEach(([cat, data]) => {
+                pnlData.push([`  ${cat}`, `${data.count} item`, data.total])
+            })
+            pnlData.push(['Total Biaya Operasional', '', expenseData.total])
+            pnlData.push([''])
+        }
+
         // Net Profit
-        pnlData.push(['LABA BERSIH', '', summary.grossProfit])
-        pnlData.push(['Margin Laba (%)', '', `${summary.profitMargin?.toFixed(1)}%`])
+        const netProfit = summary.netProfit ?? summary.grossProfit
+        const netMargin = summary.netProfitMargin ?? summary.profitMargin
+        pnlData.push(['LABA BERSIH', '', netProfit])
+        pnlData.push(['Margin Laba Bersih (%)', '', `${netMargin?.toFixed(1)}%`])
         pnlData.push([''])
 
         // Summary by category
@@ -401,6 +454,9 @@ export function useExport() {
         if (categoryBreakdown) {
             pnlData.push(['Motor', `${categoryBreakdown.motorcycle.count} transaksi`, categoryBreakdown.motorcycle.totalProfit])
             pnlData.push(['Produk', `${categoryBreakdown.product.count} transaksi`, categoryBreakdown.product.totalProfit])
+            if (categoryBreakdown.sparepart) {
+                pnlData.push(['Service & Sparepart', `${categoryBreakdown.sparepart.count} transaksi`, categoryBreakdown.sparepart.totalProfit])
+            }
         }
 
         const pnlWs = XLSX.utils.aoa_to_sheet(pnlData)
@@ -451,6 +507,21 @@ export function useExport() {
             XLSX.utils.book_append_sheet(wb, costWs, 'Detail Biaya')
         }
 
+        // Sheet 4: Detail Expenses
+        if (expenseData && expenseData.details.length > 0) {
+            const expenseDetails = expenseData.details.map((e, index) => ({
+                'No': index + 1,
+                'Tanggal': formatDate(e.transactionDate),
+                'Kategori': e.category,
+                'Deskripsi': e.description,
+                'Jumlah': e.amount,
+                'Metode': e.paymentMethod || '-',
+            }))
+            const expenseWs = XLSX.utils.json_to_sheet(expenseDetails)
+            expenseWs['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 12 }]
+            XLSX.utils.book_append_sheet(wb, expenseWs, 'Detail Expenses')
+        }
+
         const dateStr = new Date().toISOString().split('T')[0]
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
         const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -459,9 +530,10 @@ export function useExport() {
 
     const exportPnLToPDF = async (
         salesDetails: PnLSaleDetail[],
-        summary: PnLSummary,
+        summary: PnLSummary & { totalExpenses?: number; netProfit?: number; netProfitMargin?: number },
         period: { startDate: string, endDate: string },
-        categoryBreakdown?: PnLCategoryBreakdown
+        categoryBreakdown?: PnLCategoryBreakdown,
+        expenseData?: ExpenseData
     ) => {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
@@ -504,6 +576,13 @@ export function useExport() {
             salesDetails.filter(s => s.type === 'Product').forEach(sale => {
                 pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, sale.invoiceNumber, formatCurrency(sale.sellingPrice)])
             })
+            // Sparepart/Service Revenue
+            if (categoryBreakdown.sparepart) {
+                pnlTableData.push([{ content: '   Penjualan Service & Sparepart', styles: { fontStyle: 'bold' } }, '', formatCurrency(categoryBreakdown.sparepart.totalRevenue)])
+                salesDetails.filter(s => s.type === 'Service/Sparepart').forEach(sale => {
+                    pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, sale.invoiceNumber, formatCurrency(sale.sellingPrice)])
+                })
+            }
         }
         pnlTableData.push([{ content: 'Total Pendapatan Operasional', styles: { fontStyle: 'bold' } }, '', { content: formatCurrency(summary.totalRevenue), styles: { fontStyle: 'bold' } }])
 
@@ -530,6 +609,13 @@ export function useExport() {
                     })
                 }
             })
+            // Sparepart/Service HPP
+            if (categoryBreakdown.sparepart) {
+                pnlTableData.push([{ content: '   HPP Service & Sparepart', styles: { fontStyle: 'bold' } }, '', formatCurrency(categoryBreakdown.sparepart.totalHPP)])
+                salesDetails.filter(s => s.type === 'Service/Sparepart').forEach(sale => {
+                    pnlTableData.push([`      ${sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name}`, `${sale.costBreakdown?.length || 0} item`, formatCurrency(sale.hpp)])
+                })
+            }
         }
         pnlTableData.push([{ content: 'Total HPP', styles: { fontStyle: 'bold' } }, '', { content: formatCurrency(summary.totalHPP), styles: { fontStyle: 'bold' } }])
 
@@ -540,9 +626,21 @@ export function useExport() {
 
         pnlTableData.push(['', '', '']) // Separator
 
-        // Net Profit (same as Gross since no operating expenses)
-        pnlTableData.push([{ content: 'LABA BERSIH (NET PROFIT)', styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }, '', { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }])
-        pnlTableData.push([{ content: 'Margin Laba', styles: { fontStyle: 'bold' } }, '', { content: `${summary.profitMargin?.toFixed(1)}%`, styles: { fontStyle: 'bold' } }])
+        // Operational Expenses section
+        if (expenseData && expenseData.details.length > 0) {
+            pnlTableData.push([{ content: 'BIAYA OPERASIONAL', styles: { fontStyle: 'bold', fillColor: [255, 230, 230] } }, '', ''])
+            Object.entries(expenseData.categories).forEach(([cat, data]) => {
+                pnlTableData.push([`   ${cat}`, `${data.count} item`, formatCurrency(data.total)])
+            })
+            pnlTableData.push([{ content: 'Total Biaya Operasional', styles: { fontStyle: 'bold' } }, '', { content: formatCurrency(expenseData.total), styles: { fontStyle: 'bold' } }])
+            pnlTableData.push(['', '', '']) // Separator
+        }
+
+        // Net Profit (Gross - Expenses)
+        const netProfit = summary.netProfit ?? summary.grossProfit
+        const netMargin = summary.netProfitMargin ?? summary.profitMargin
+        pnlTableData.push([{ content: 'LABA BERSIH (NET PROFIT)', styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }, '', { content: formatCurrency(netProfit), styles: { fontStyle: 'bold', fillColor: [180, 220, 255] } }])
+        pnlTableData.push([{ content: 'Margin Laba Bersih', styles: { fontStyle: 'bold' } }, '', { content: `${netMargin?.toFixed(1)}%`, styles: { fontStyle: 'bold' } }])
 
         autoTable(doc, {
             body: pnlTableData,
@@ -571,8 +669,14 @@ export function useExport() {
         if (categoryBreakdown) {
             summaryTableData.push(['Motor', categoryBreakdown.motorcycle.count + ' transaksi', formatCurrency(categoryBreakdown.motorcycle.totalProfit)])
             summaryTableData.push(['Produk', categoryBreakdown.product.count + ' transaksi', formatCurrency(categoryBreakdown.product.totalProfit)])
+            if (categoryBreakdown.sparepart) {
+                summaryTableData.push(['Service & Sparepart', categoryBreakdown.sparepart.count + ' transaksi', formatCurrency(categoryBreakdown.sparepart.totalProfit)])
+            }
         }
-        summaryTableData.push([{ content: 'Total', styles: { fontStyle: 'bold' } }, { content: summary.totalTransactions + ' transaksi', styles: { fontStyle: 'bold' } }, { content: formatCurrency(summary.grossProfit), styles: { fontStyle: 'bold' } }])
+        if (expenseData && expenseData.total > 0) {
+            summaryTableData.push(['Biaya Operasional', expenseData.count + ' item', formatCurrency(-expenseData.total)])
+        }
+        summaryTableData.push([{ content: 'Total', styles: { fontStyle: 'bold' } }, { content: summary.totalTransactions + ' transaksi', styles: { fontStyle: 'bold' } }, { content: formatCurrency(netProfit), styles: { fontStyle: 'bold' } }])
 
         autoTable(doc, {
             head: [['Kategori', 'Jumlah', 'Total Profit']],

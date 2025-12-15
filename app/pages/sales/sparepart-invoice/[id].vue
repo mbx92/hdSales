@@ -96,6 +96,20 @@ const handleExportPDF = async () => {
       formatCurrency(item.subtotal)
     ])
     
+    // Add product items
+    if (s.productItems && s.productItems.length > 0) {
+      s.productItems.forEach((item: any) => {
+        tableData.push([
+          tableData.length + 1,
+          `[Produk] ${item.name || '-'}`,
+          item.sku || '-',
+          item.quantity,
+          formatCurrency(item.unitPrice),
+          formatCurrency(item.subtotal)
+        ])
+      })
+    }
+    
     autoTable(doc, {
       head: [['No', 'Nama Produk', 'SKU', 'Qty', 'Harga', 'Subtotal']],
       body: tableData,
@@ -214,6 +228,20 @@ const handleExportPDF = async () => {
               <td>{{ index + 1 }}</td>
               <td class="font-medium">{{ item.sparepart?.name }}</td>
               <td class="font-mono text-xs">{{ item.sparepart?.sku }}</td>
+              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-right font-mono">{{ formatCurrency(item.unitPrice) }}</td>
+              <td class="text-right font-mono font-bold">{{ formatCurrency(item.subtotal) }}</td>
+            </tr>
+            <!-- Product Items -->
+            <tr v-for="(item, index) in (saleData as any).productItems" :key="`product-${item.id}`" class="hover bg-warning/5">
+              <td>{{ saleData.items.length + index + 1 }}</td>
+              <td class="font-medium">
+                <span class="flex items-center gap-2">
+                  {{ item.name }}
+                  <span class="badge badge-warning badge-xs">Produk</span>
+                </span>
+              </td>
+              <td class="font-mono text-xs">{{ item.sku }}</td>
               <td class="text-center">{{ item.quantity }}</td>
               <td class="text-right font-mono">{{ formatCurrency(item.unitPrice) }}</td>
               <td class="text-right font-mono font-bold">{{ formatCurrency(item.subtotal) }}</td>

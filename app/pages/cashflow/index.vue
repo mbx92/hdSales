@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconArrowUp, IconArrowDown, IconChartBar } from '@tabler/icons-vue'
+import { IconArrowUp, IconArrowDown, IconChartBar, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue'
 
 interface CashflowSummary {
   summary: {
@@ -18,15 +18,38 @@ const selectedPeriod = ref('month')
 const startDate = ref<string | undefined>(undefined)
 const endDate = ref<string | undefined>(undefined)
 
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 10
+
 const { data: summary, pending: summaryPending, refresh: refreshSummary } = await useFetch<CashflowSummary>('/api/cashflow/summary', {
   query: { startDate, endDate },
   watch: [startDate, endDate],
 })
 
 const { data: cashflows, pending: cashflowsPending } = await useFetch('/api/cashflow', {
-  query: { startDate, endDate, limit: 100 },
+  query: { startDate, endDate, limit: 500 },
   watch: [startDate, endDate],
 })
+
+// Paginated data
+const paginatedCashflows = computed(() => {
+  if (!cashflows.value?.data) return []
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return cashflows.value.data.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  if (!cashflows.value?.data) return 1
+  return Math.ceil(cashflows.value.data.length / itemsPerPage)
+})
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -38,6 +61,7 @@ const formatCurrency = (value: number) => {
 
 const setPeriod = (period: string) => {
   selectedPeriod.value = period
+  currentPage.value = 1 // Reset page on period change
   const now = new Date()
   
   switch (period) {
@@ -207,7 +231,7 @@ onMounted(() => setPeriod('month'))
               </tr>
             </thead>
             <tbody>
-              <tr v-for="cf in cashflows.data" :key="cf.id">
+              <tr v-for="cf in paginatedCashflows" :key="cf.id">
                 <td>{{ new Date(cf.transactionDate).toLocaleDateString('id-ID') }}</td>
                 <td>
                   <span :class="['badge badge-sm', cf.type === 'INCOME' ? 'badge-success' : 'badge-error']">
@@ -224,6 +248,32 @@ onMounted(() => setPeriod('month'))
               </tr>
             </tbody>
           </table>
+          
+          <!-- Pagination -->
+          <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t border-base-300">
+            <div class="text-sm text-base-content/60">
+              Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, cashflows?.data?.length || 0) }} dari {{ cashflows?.data?.length || 0 }}
+            </div>
+            <div class="flex items-center gap-2">
+              <button 
+                @click="goToPage(currentPage - 1)" 
+                :disabled="currentPage === 1"
+                class="btn btn-sm btn-ghost"
+              >
+                <IconChevronLeft class="w-4 h-4" />
+              </button>
+              <span class="text-sm">
+                Halaman {{ currentPage }} dari {{ totalPages }}
+              </span>
+              <button 
+                @click="goToPage(currentPage + 1)" 
+                :disabled="currentPage === totalPages"
+                class="btn btn-sm btn-ghost"
+              >
+                <IconChevronRight class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-else class="text-center py-8 text-base-content/40">

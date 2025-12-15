@@ -76,7 +76,13 @@ const handleExportExcel = async () => {
     if (!report.value) return
     exportingExcel.value = true
     try {
-        await exportPnLToExcel(report.value.salesDetails, report.value.summary, report.value.period, report.value.categoryBreakdown)
+        await exportPnLToExcel(
+            report.value.salesDetails, 
+            report.value.summary, 
+            report.value.period, 
+            report.value.categoryBreakdown,
+            report.value.expenses
+        )
     } catch (error) {
         console.error('Export Excel error:', error)
         showError('Gagal export Excel')
@@ -89,7 +95,13 @@ const handleExportPDF = async () => {
     if (!report.value) return
     exportingPDF.value = true
     try {
-        await exportPnLToPDF(report.value.salesDetails, report.value.summary, report.value.period, report.value.categoryBreakdown)
+        await exportPnLToPDF(
+            report.value.salesDetails, 
+            report.value.summary, 
+            report.value.period, 
+            report.value.categoryBreakdown,
+            report.value.expenses
+        )
     } catch (error) {
         console.error('Export PDF error:', error)
         showError('Gagal export PDF')
@@ -228,6 +240,20 @@ const handleExportPDF = async () => {
                                     </tr>
                                 </template>
                                 
+                                <!-- Sparepart/Service Revenue Details -->
+                                <template v-if="report.categoryBreakdown.sparepart">
+                                    <tr class="bg-base-300/30">
+                                        <td colspan="2" class="pl-4 font-semibold">Penjualan Service & Sparepart</td>
+                                        <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.sparepart.totalRevenue) }}</td>
+                                    </tr>
+                                    <template v-for="sale in report.salesDetails.filter((s: any) => s.type === 'Service/Sparepart')" :key="sale.id">
+                                        <tr>
+                                            <td class="pl-8 text-sm" colspan="2">{{ sale.name }}</td>
+                                            <td class="text-right font-mono text-sm">{{ formatCurrency(sale.sellingPrice) }}</td>
+                                        </tr>
+                                    </template>
+                                </template>
+                                
                                 <tr class="border-t-2 border-base-300">
                                     <td colspan="2" class="font-bold">Total Pendapatan Operasional</td>
                                     <td class="text-right font-mono font-bold text-success">{{ formatCurrency(report.summary.totalRevenue) }}</td>
@@ -280,6 +306,21 @@ const handleExportPDF = async () => {
                                     </template>
                                 </template>
                                 
+                                <!-- Sparepart/Service HPP Details -->
+                                <template v-if="report.categoryBreakdown.sparepart">
+                                    <tr class="bg-base-300/30">
+                                        <td colspan="2" class="pl-4 font-semibold">HPP Service & Sparepart</td>
+                                        <td class="text-right font-mono">{{ formatCurrency(report.categoryBreakdown.sparepart.totalHPP) }}</td>
+                                    </tr>
+                                    <template v-for="sale in report.salesDetails.filter((s: any) => s.type === 'Service/Sparepart')" :key="'hpp-'+sale.id">
+                                        <tr>
+                                            <td class="pl-8 text-sm">{{ sale.name }}</td>
+                                            <td class="text-right text-xs text-base-content/60">{{ sale.costBreakdown?.length || 0 }} item</td>
+                                            <td class="text-right font-mono text-sm">{{ formatCurrency(sale.hpp) }}</td>
+                                        </tr>
+                                    </template>
+                                </template>
+                                
                                 <tr class="border-t-2 border-base-300">
                                     <td colspan="2" class="font-bold">Total HPP</td>
                                     <td class="text-right font-mono font-bold text-error">{{ formatCurrency(report.summary.totalHPP) }}</td>
@@ -299,17 +340,43 @@ const handleExportPDF = async () => {
                                 <!-- Empty row separator -->
                                 <tr><td colspan="3" class="py-2"></td></tr>
                                 
+                                <!-- Expenses Section -->
+                                <tr class="bg-base-300/50">
+                                    <td colspan="2" class="font-bold">BIAYA OPERASIONAL</td>
+                                    <td class="text-right"></td>
+                                </tr>
+                                <template v-if="report.expenses?.details?.length">
+                                    <tr v-for="exp in report.expenses.details" :key="exp.id">
+                                        <td class="pl-8 text-sm">{{ exp.description }}</td>
+                                        <td class="text-right text-xs text-base-content/60">{{ exp.category }}</td>
+                                        <td class="text-right font-mono text-sm text-error">{{ formatCurrency(exp.amount) }}</td>
+                                    </tr>
+                                </template>
+                                <tr v-else>
+                                    <td colspan="2" class="pl-8 text-sm text-base-content/60">Belum ada biaya operasional</td>
+                                    <td class="text-right">
+                                        <NuxtLink to="/expenses" class="link link-primary text-xs">+ Tambah</NuxtLink>
+                                    </td>
+                                </tr>
+                                <tr class="border-t-2 border-base-300">
+                                    <td colspan="2" class="font-bold">Total Biaya Operasional</td>
+                                    <td class="text-right font-mono font-bold text-error">{{ formatCurrency(report.summary.totalExpenses || 0) }}</td>
+                                </tr>
+                                
+                                <!-- Empty row separator -->
+                                <tr><td colspan="3" class="py-2"></td></tr>
+                                
                                 <!-- Net Profit -->
                                 <tr class="bg-primary/20">
                                     <td colspan="2" class="font-bold">LABA BERSIH (NET PROFIT)</td>
-                                    <td :class="['text-right font-mono font-bold text-lg', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
-                                        {{ formatCurrency(report.summary.grossProfit) }}
+                                    <td :class="['text-right font-mono font-bold text-lg', (report.summary.netProfit || report.summary.grossProfit) >= 0 ? 'text-success' : 'text-error']">
+                                        {{ formatCurrency(report.summary.netProfit || report.summary.grossProfit) }}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td colspan="2" class="font-semibold">Margin Laba</td>
-                                    <td :class="['text-right font-mono font-bold', report.summary.profitMargin >= 0 ? 'text-success' : 'text-error']">
-                                        {{ report.summary.profitMargin.toFixed(1) }}%
+                                    <td colspan="2" class="font-semibold">Margin Laba Bersih</td>
+                                    <td :class="['text-right font-mono font-bold', (report.summary.netProfitMargin || report.summary.profitMargin) >= 0 ? 'text-success' : 'text-error']">
+                                        {{ (report.summary.netProfitMargin || report.summary.profitMargin).toFixed(1) }}%
                                     </td>
                                 </tr>
                             </tbody>

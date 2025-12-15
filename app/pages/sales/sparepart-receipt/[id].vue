@@ -129,6 +129,16 @@ const handleExportPDF = async () => {
       y += 4
     }
     
+    // Product items
+    if (s.productItems && s.productItems.length > 0) {
+      for (const item of s.productItems) {
+        doc.text(`[P] ${item.name?.substring(0, 22) || '-'}`, 5, y)
+        doc.text(String(item.quantity), 45, y, { align: 'center' })
+        doc.text(formatCurrency(item.subtotal), pageWidth - 5, y, { align: 'right' })
+        y += 4
+      }
+    }
+    
     y += 2
     doc.line(5, y, pageWidth - 5, y)
     y += 5
@@ -244,6 +254,7 @@ const handleExportPDF = async () => {
       <div class="p-6">
         <h3 class="font-bold mb-4 text-sm text-base-content/60 uppercase tracking-wide">Detail Pembelian</h3>
         <div class="space-y-3">
+          <!-- Sparepart Items -->
           <div 
             v-for="item in saleData.items" 
             :key="item.id" 
@@ -253,6 +264,24 @@ const handleExportPDF = async () => {
               <p class="font-medium">{{ item.sparepart?.name }}</p>
               <p class="text-xs text-base-content/60">
                 {{ item.sparepart?.sku }} • {{ item.quantity }} × {{ formatCurrency(item.unitPrice) }}
+              </p>
+            </div>
+            <p class="font-mono font-bold">{{ formatCurrency(item.subtotal) }}</p>
+          </div>
+          
+          <!-- Product Items -->
+          <div 
+            v-for="item in (saleData as any).productItems" 
+            :key="`product-${item.id}`" 
+            class="flex justify-between items-start p-3 bg-warning/10 rounded-lg border border-warning/30"
+          >
+            <div class="flex-1">
+              <p class="font-medium flex items-center gap-2">
+                {{ item.name }}
+                <span class="badge badge-warning badge-xs">Produk</span>
+              </p>
+              <p class="text-xs text-base-content/60">
+                {{ item.sku }} • 1 × {{ formatCurrency(item.unitPrice) }}
               </p>
             </div>
             <p class="font-mono font-bold">{{ formatCurrency(item.subtotal) }}</p>

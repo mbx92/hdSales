@@ -35,5 +35,40 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    return sale
+    // Parse linked product sales from notes field
+    let productItems: any[] = []
+    if (sale.notes && sale.notes.startsWith('PRODUCTS:')) {
+        const productSaleIds = sale.notes.replace('PRODUCTS:', '').split(',').filter(Boolean)
+        if (productSaleIds.length > 0) {
+            const productSales = await prisma.productSale.findMany({
+                where: { id: { in: productSaleIds } },
+                include: {
+                    product: {
+                        select: {
+                            name: true,
+                            sku: true,
+                            category: true
+                        }
+                    }
+                }
+            })
+            productItems = productSales.map(ps => ({
+                id: ps.id,
+                productId: ps.productId,
+                name: ps.product.name,
+                sku: ps.product.sku || `PRD-${ps.productId.slice(-4).toUpperCase()}`,
+                category: ps.product.category,
+                quantity: 1,
+                unitPrice: ps.sellingPrice,
+                subtotal: ps.sellingPrice,
+                itemType: 'product'
+            }))
+        }
+    }
+
+    return {
+        ...sale,
+        productItems
+    }
 })
+
