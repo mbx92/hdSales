@@ -12,7 +12,10 @@ export default defineEventHandler(async (event) => {
 
     const product = await prisma.product.findUnique({
         where: { id },
-        include: { saleTransaction: true },
+        include: {
+            saleTransaction: true,
+            costs: true
+        },
     })
 
     if (!product) {
@@ -22,16 +25,32 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (product.status === 'SOLD') {
-        throw createError({
-            statusCode: 400,
-            message: 'Produk yang sudah terjual tidak dapat dihapus',
-        })
-    }
+    // Use transaction to handle cascade delete
+    await prisma.$transaction(async (tx) => {
+        // Delete related CashFlow from ProductSale if exists
+        if (product.saleTransaction) {
+            await tx.productSale.delete({
+                where: { id: product.saleTransaction.id }
+            })
+            await tx.cashFlow.delete({
+                where: { id: product.saleTransaction.cashFlowId }
+            })
+        }
 
-    // Delete product (will cascade delete costs)
-    await prisma.product.delete({
-        where: { id },
+        // Delete related CashFlow from ProductCosts
+        for (const cost of product.costs) {
+            await tx.productCost.delete({
+                where: { id: cost.id }
+            })
+            await tx.cashFlow.delete({
+                where: { id: cost.cashFlowId }
+            })
+        }
+
+        // Delete product
+        await tx.product.delete({
+            where: { id },
+        })
     })
 
     return { success: true, message: 'Produk berhasil dihapus' }

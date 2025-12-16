@@ -12,6 +12,10 @@ export default defineEventHandler(async (event) => {
 
     const motorcycle = await prisma.motorcycle.findUnique({
         where: { id },
+        include: {
+            saleTransaction: true,
+            costs: true
+        }
     })
 
     if (!motorcycle) {
@@ -21,15 +25,32 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (motorcycle.status === 'SOLD') {
-        throw createError({
-            statusCode: 400,
-            message: 'Motor yang sudah terjual tidak bisa dihapus',
-        })
-    }
+    // Use transaction to handle cascade delete
+    await prisma.$transaction(async (tx) => {
+        // Delete related CashFlow from SaleTransaction if exists
+        if (motorcycle.saleTransaction) {
+            await tx.saleTransaction.delete({
+                where: { id: motorcycle.saleTransaction.id }
+            })
+            await tx.cashFlow.delete({
+                where: { id: motorcycle.saleTransaction.cashFlowId }
+            })
+        }
 
-    await prisma.motorcycle.delete({
-        where: { id },
+        // Delete related CashFlow from Costs
+        for (const cost of motorcycle.costs) {
+            await tx.cost.delete({
+                where: { id: cost.id }
+            })
+            await tx.cashFlow.delete({
+                where: { id: cost.cashFlowId }
+            })
+        }
+
+        // Delete motorcycle
+        await tx.motorcycle.delete({
+            where: { id },
+        })
     })
 
     return {

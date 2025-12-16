@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconEdit, IconTrash, IconFilter, IconReceipt, IconWallet, IconBuildingStore, IconBolt, IconUsers, IconSpeakerphone, IconTool, IconDotsVertical, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue'
+import { IconPlus, IconEdit, IconTrash, IconFilter, IconReceipt, IconWallet, IconBuildingStore, IconBolt, IconUsers, IconSpeakerphone, IconTool, IconDotsVertical, IconChevronLeft, IconChevronRight, IconCoin } from '@tabler/icons-vue'
 
 const { showError, showSuccess } = useAlert()
 
@@ -21,6 +21,7 @@ const categories = [
     { value: 'SALARY', label: 'Gaji', icon: IconUsers, color: 'info' },
     { value: 'MARKETING', label: 'Marketing', icon: IconSpeakerphone, color: 'secondary' },
     { value: 'MAINTENANCE', label: 'Maintenance', icon: IconTool, color: 'accent' },
+    { value: 'KOMISI', label: 'Komisi', icon: IconCoin, color: 'success' },
     { value: 'OTHER', label: 'Lainnya', icon: IconWallet, color: 'neutral' },
 ]
 
