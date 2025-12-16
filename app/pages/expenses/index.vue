@@ -328,59 +328,61 @@ const handleDelete = async (id: string) => {
         </div>
 
         <!-- Create/Edit Modal -->
-        <dialog :class="['modal', showModal && 'modal-open']">
-            <div class="modal-box">
-                <h3 class="font-bold text-lg mb-4">{{ editingExpense ? 'Edit Expense' : 'Tambah Expense' }}</h3>
-                
-                <form @submit.prevent="handleSubmit" class="space-y-4">
-                    <div class="form-control">
-                        <label class="label"><span class="label-text">Kategori *</span></label>
-                        <select v-model="form.category" class="select select-bordered bg-base-200">
-                            <option v-for="cat in categories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
-                        </select>
-                    </div>
-
-                    <div class="form-control">
-                        <label class="label"><span class="label-text">Deskripsi *</span></label>
-                        <input v-model="form.description" type="text" class="input input-bordered bg-base-200" placeholder="Contoh: Listrik bulan Desember" />
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
+        <Teleport to="body">
+            <dialog :class="['modal', showModal && 'modal-open']">
+                <div class="modal-box">
+                    <h3 class="font-bold text-lg mb-4">{{ editingExpense ? 'Edit Expense' : 'Tambah Expense' }}</h3>
+                    
+                    <form @submit.prevent="handleSubmit" class="space-y-4">
                         <div class="form-control">
-                            <label class="label"><span class="label-text">Jumlah (IDR) *</span></label>
-                            <input v-model="form.amount" type="number" class="input input-bordered bg-base-200" min="0" />
+                            <label class="label"><span class="label-text">Kategori *</span></label>
+                            <select v-model="form.category" class="select select-bordered bg-base-200">
+                                <option v-for="cat in categories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+                            </select>
                         </div>
+
                         <div class="form-control">
-                            <label class="label"><span class="label-text">Tanggal</span></label>
-                            <input v-model="form.transactionDate" type="date" class="input input-bordered bg-base-200" />
+                            <label class="label"><span class="label-text">Deskripsi *</span></label>
+                            <input v-model="form.description" type="text" class="input input-bordered bg-base-200" placeholder="Contoh: Listrik bulan Desember" />
                         </div>
-                    </div>
 
-                    <div class="form-control">
-                        <label class="label"><span class="label-text">Metode Pembayaran</span></label>
-                        <select v-model="form.paymentMethod" class="select select-bordered bg-base-200">
-                            <option value="CASH">Cash</option>
-                            <option value="TRANSFER">Transfer</option>
-                            <option value="CARD">Kartu</option>
-                            <option value="QRIS">QRIS</option>
-                        </select>
-                    </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label"><span class="label-text">Jumlah (IDR) *</span></label>
+                                <input v-model="form.amount" type="number" class="input input-bordered bg-base-200" min="0" />
+                            </div>
+                            <div class="form-control">
+                                <label class="label"><span class="label-text">Tanggal</span></label>
+                                <input v-model="form.transactionDate" type="date" class="input input-bordered bg-base-200" />
+                            </div>
+                        </div>
 
-                    <div class="form-control">
-                        <label class="label"><span class="label-text">Catatan</span></label>
-                        <textarea v-model="form.notes" class="textarea textarea-bordered bg-base-200 h-20" placeholder="Catatan tambahan..."></textarea>
-                    </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Metode Pembayaran</span></label>
+                            <select v-model="form.paymentMethod" class="select select-bordered bg-base-200">
+                                <option value="CASH">Cash</option>
+                                <option value="TRANSFER">Transfer</option>
+                                <option value="CARD">Kartu</option>
+                                <option value="QRIS">QRIS</option>
+                            </select>
+                        </div>
 
-                    <div class="modal-action">
-                        <button type="button" class="btn btn-ghost" @click="showModal = false">Batal</button>
-                        <button type="submit" class="btn btn-primary" :disabled="loading">
-                            <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-                            {{ editingExpense ? 'Update' : 'Simpan' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-            <form method="dialog" class="modal-backdrop" @click="showModal = false"></form>
-        </dialog>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Catatan</span></label>
+                            <textarea v-model="form.notes" class="textarea textarea-bordered bg-base-200 h-20" placeholder="Catatan tambahan..."></textarea>
+                        </div>
+
+                        <div class="modal-action">
+                            <button type="button" class="btn btn-ghost" @click="showModal = false">Batal</button>
+                            <button type="submit" class="btn btn-primary" :disabled="loading">
+                                <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+                                {{ editingExpense ? 'Update' : 'Simpan' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <form method="dialog" class="modal-backdrop" @click="showModal = false"></form>
+            </dialog>
+        </Teleport>
     </div>
 </template>

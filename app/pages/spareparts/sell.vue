@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt, IconBox } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar } from '@tabler/icons-vue'
 
 const router = useRouter()
 const { showError, showWarning } = useAlert()
@@ -28,7 +28,8 @@ const allItems = computed(() => {
     itemType: 'product',
     isService: false,
     stock: 1, // Products are single items
-    displaySku: p.sku || `PRD-${p.id.slice(-4).toUpperCase()}`
+    displaySku: p.sku || `PRD-${p.id.slice(-4).toUpperCase()}`,
+    hasPrice: p.sellingPrice != null && p.sellingPrice > 0 // Track if product has a real price
   }))
   
   return [...sparepartList, ...productList]
@@ -43,6 +44,10 @@ const discount = ref(0)
 const loading = ref(false)
 const showSuccessModal = ref(false)
 const showCheckoutModal = ref(false)
+const showPriceModal = ref(false)
+const pendingProduct = ref<any>(null)
+const inputPrice = ref('')
+const savingPrice = ref(false)
 const lastInvoice = ref('')
 const lastSaleId = ref('')
 
@@ -71,6 +76,15 @@ const addToCart = (product: any) => {
   if (isProduct) {
     const existing = cart.value.find(item => item.id === product.id && item.itemType === 'product')
     if (existing) return showWarning('Produk ini sudah ada di keranjang!')
+    
+    // Check if product has no selling price - show price input modal
+    if (!product.hasPrice) {
+      pendingProduct.value = product
+      inputPrice.value = product.totalCost ? String(product.totalCost) : ''
+      showPriceModal.value = true
+      search.value = ''
+      return
+    }
   }
   
   if (!isService && !isProduct && product.stock <= 0) return showWarning('Stok habis!')
@@ -92,6 +106,50 @@ const addToCart = (product: any) => {
     })
   }
   search.value = '' // Clear search
+}
+
+// Save price and add to cart
+const saveProductPrice = async () => {
+  if (!pendingProduct.value || !inputPrice.value) {
+    return showWarning('Harga jual wajib diisi!')
+  }
+  
+  const price = parseFloat(inputPrice.value)
+  if (isNaN(price) || price <= 0) {
+    return showWarning('Harga tidak valid!')
+  }
+  
+  savingPrice.value = true
+  try {
+    // Update product selling price in database
+    await $fetch(`/api/products/${pendingProduct.value.id}`, {
+      method: 'PATCH',
+      body: { sellingPrice: price }
+    })
+    
+    // Add to cart with the new price
+    cart.value.push({
+      id: pendingProduct.value.id,
+      name: pendingProduct.value.name,
+      sku: pendingProduct.value.displaySku || pendingProduct.value.sku,
+      price: price,
+      quantity: 1,
+      maxStock: 1,
+      isService: false,
+      itemType: 'product'
+    })
+    
+    // Update the product in allItems to reflect the new price
+    pendingProduct.value.sellingPrice = price
+    
+    showPriceModal.value = false
+    pendingProduct.value = null
+    inputPrice.value = ''
+  } catch (e: any) {
+    showError(e.data?.message || 'Gagal menyimpan harga')
+  } finally {
+    savingPrice.value = false
+  }
 }
 
 const removeFromCart = (index: number) => {
@@ -202,7 +260,10 @@ const formatCurrency = (value: number) => {
                         <span v-else>Stok: {{ p.stock }}</span>
                       </div>
                     </div>
-                    <div class="font-mono font-bold">{{ formatCurrency(p.sellingPrice) }}</div>
+                    <div v-if="p.itemType === 'product' && !p.hasPrice" class="font-bold text-warning flex items-center gap-1">
+                      <IconCurrencyDollar class="w-4 h-4" /> Set Harga
+                    </div>
+                    <div v-else class="font-mono font-bold">{{ formatCurrency(p.sellingPrice || 0) }}</div>
                   </a>
                 </li>
               </ul>
@@ -238,7 +299,11 @@ const formatCurrency = (value: number) => {
                   </div>
                 </div>
                 <p class="text-xs font-semibold line-clamp-2 min-h-[2rem]">{{ product.name }}</p>
-                <p class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice) }}</p>
+                <p v-if="product.itemType === 'product' && !product.hasPrice" 
+                   class="text-xs font-bold text-warning flex items-center gap-1">
+                  <IconCurrencyDollar class="w-3 h-3" /> Set Harga
+                </p>
+                <p v-else class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice || 0) }}</p>
                 <p v-if="product.category === 'SERVICE'" class="text-xs text-info flex items-center gap-1">
                   <IconInfinity class="w-3 h-3" /> Jasa
                 </p>
@@ -399,6 +464,59 @@ const formatCurrency = (value: number) => {
           </button>
         </div>
       </div>
+    </dialog>
+
+    <!-- Price Input Modal for Products -->
+    <dialog :class="['modal', showPriceModal && 'modal-open']">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <IconCurrencyDollar class="w-5 h-5 text-primary" />
+          Set Harga Jual
+        </h3>
+        <div class="py-4" v-if="pendingProduct">
+          <div class="bg-base-200 rounded-lg p-3 mb-4">
+            <p class="font-bold">{{ pendingProduct.name }}</p>
+            <p class="text-sm opacity-60">{{ pendingProduct.displaySku || pendingProduct.sku }}</p>
+            <p v-if="pendingProduct.totalCost" class="text-sm mt-1">
+              HPP: <span class="font-mono">{{ formatCurrency(pendingProduct.totalCost) }}</span>
+            </p>
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Harga Jual (IDR) *</span></label>
+            <input 
+              v-model="inputPrice" 
+              type="number" 
+              class="input input-bordered font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              placeholder="0"
+              min="0"
+              @keyup.enter="saveProductPrice"
+              autofocus
+            />
+          </div>
+          <p v-if="pendingProduct.totalCost && inputPrice" class="text-sm mt-2">
+            Margin: 
+            <span :class="parseFloat(inputPrice) > pendingProduct.totalCost ? 'text-success' : 'text-error'">
+              {{ formatCurrency(parseFloat(inputPrice || '0') - pendingProduct.totalCost) }}
+              ({{ ((parseFloat(inputPrice || '0') - pendingProduct.totalCost) / pendingProduct.totalCost * 100).toFixed(1) }}%)
+            </span>
+          </p>
+        </div>
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="showPriceModal = false; pendingProduct = null">Batal</button>
+          <button 
+            @click="saveProductPrice" 
+            class="btn btn-primary"
+            :disabled="savingPrice || !inputPrice"
+          >
+            <span v-if="savingPrice" class="loading loading-spinner loading-sm"></span>
+            <template v-else>
+              Simpan & Tambah
+              <IconCheck class="w-5 h-5" />
+            </template>
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop" @click="showPriceModal = false; pendingProduct = null"></form>
     </dialog>
   </div>
 </template>
