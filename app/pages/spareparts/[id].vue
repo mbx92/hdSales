@@ -4,6 +4,7 @@ import { IconArrowLeft, IconPencil, IconTrash, IconHistory, IconPackage, IconAle
 const route = useRoute()
 const router = useRouter()
 const { showError } = useAlert()
+const { showConfirm, confirmData, confirm, handleConfirm, handleCancel } = useConfirm()
 const id = route.params.id as string
 
 const { data: sparepart, pending, refresh } = await useFetch(`/api/spareparts/${id}`)
@@ -38,7 +39,14 @@ const handleUpdate = async () => {
 }
 
 const deleteItem = async () => {
-  if (!confirm('Yakin ingin menghapus produk ini?')) return
+  const confirmed = await confirm({
+    title: 'Hapus Sparepart/Service',
+    message: 'Yakin ingin menghapus item ini? Semua data riwayat penjualan juga akan terhapus.',
+    confirmText: 'Ya, Hapus',
+    type: 'danger',
+  })
+  
+  if (!confirmed) return
   
   try {
     await $fetch(`/api/spareparts/${id}`, { method: 'DELETE' })
@@ -275,5 +283,17 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
         <button @click="showEditModal = false">close</button>
       </form>
     </dialog>
+
+    <!-- Confirmation Modal -->
+    <ConfirmModal
+      :show="showConfirm"
+      :title="confirmData.title"
+      :message="confirmData.message"
+      :confirm-text="confirmData.confirmText"
+      :cancel-text="confirmData.cancelText"
+      :type="confirmData.type"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+    />
   </div>
 </template>
