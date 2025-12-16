@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt } from '@tabler/icons-vue'
+import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt, IconTrash } from '@tabler/icons-vue'
 
 const activeTab = ref<'motorcycle' | 'product' | 'sparepart'>('motorcycle')
 const page = ref(1)
@@ -127,6 +127,31 @@ const openPrintModal = (saleId: string, invoiceNumber: string) => {
   selectedSaleId.value = saleId
   selectedInvoiceNumber.value = invoiceNumber
   showPrintModal.value = true
+}
+
+// Delete sparepart sale
+const showDeleteModal = ref(false)
+const deleteTargetId = ref('')
+const deleteTargetInvoice = ref('')
+const deleteInProgress = ref(false)
+
+const openDeleteModal = (id: string, invoiceNumber: string) => {
+  deleteTargetId.value = id
+  deleteTargetInvoice.value = invoiceNumber
+  showDeleteModal.value = true
+}
+
+const confirmDelete = async () => {
+  deleteInProgress.value = true
+  try {
+    await $fetch(`/api/sparepart-sales/${deleteTargetId.value}`, { method: 'DELETE' })
+    showDeleteModal.value = false
+    await refreshSpareparts()
+  } catch (error: any) {
+    alert(error?.data?.message || 'Gagal menghapus transaksi')
+  } finally {
+    deleteInProgress.value = false
+  }
 }
 </script>
 
@@ -399,9 +424,14 @@ const openPrintModal = (saleId: string, invoiceNumber: string) => {
                   {{ formatCurrency(sale.total, 'IDR') }}
                 </td>
                 <td class="text-center">
-                  <button @click="openPrintModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square" title="Print">
-                    <IconPrinter class="w-4 h-4" />
-                  </button>
+                  <div class="flex justify-center gap-1">
+                    <button @click="openPrintModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square" title="Print">
+                      <IconPrinter class="w-4 h-4" />
+                    </button>
+                    <button @click="openDeleteModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square text-error" title="Hapus" :disabled="deleteInProgress">
+                      <IconTrash class="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -498,6 +528,27 @@ const openPrintModal = (saleId: string, invoiceNumber: string) => {
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="showPrintModal = false"></form>
+    </dialog>
+
+    <!-- Delete Confirmation Modal -->
+    <dialog :class="['modal', showDeleteModal && 'modal-open']">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg text-error mb-4">Hapus Transaksi</h3>
+        <p class="mb-2">Yakin ingin menghapus transaksi <strong>{{ deleteTargetInvoice }}</strong>?</p>
+        <div class="bg-warning/10 border border-warning/30 rounded-lg p-3 mb-4">
+          <p class="text-sm text-warning-content">
+            ⚠️ Stok sparepart akan dikembalikan dan data akan dihapus dari laporan keuangan.
+          </p>
+        </div>
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="showDeleteModal = false" :disabled="deleteInProgress">Batal</button>
+          <button class="btn btn-error" @click="confirmDelete" :disabled="deleteInProgress">
+            <span v-if="deleteInProgress" class="loading loading-spinner loading-sm"></span>
+            <span v-else>Hapus</span>
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop" @click="showDeleteModal = false"></form>
     </dialog>
   </div>
 </template>
