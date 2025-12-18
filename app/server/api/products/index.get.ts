@@ -1,9 +1,11 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
 
-    const where: any = {}
+    const where: any = { userId }
 
     // Filter by status
     if (query.status) {

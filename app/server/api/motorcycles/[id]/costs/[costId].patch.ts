@@ -1,6 +1,8 @@
 import prisma from '../../../../utils/prisma'
+import { requireUser } from '../../../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const motorcycleId = getRouterParam(event, 'id')
     const costId = getRouterParam(event, 'costId')
     const body = await readBody(event)
@@ -9,6 +11,18 @@ export default defineEventHandler(async (event) => {
         throw createError({
             statusCode: 400,
             message: 'ID tidak valid',
+        })
+    }
+
+    // Verify motorcycle belongs to user
+    const motorcycle = await prisma.motorcycle.findFirst({
+        where: { id: motorcycleId, userId },
+    })
+
+    if (!motorcycle) {
+        throw createError({
+            statusCode: 404,
+            message: 'Motor tidak ditemukan',
         })
     }
 
@@ -56,9 +70,6 @@ export default defineEventHandler(async (event) => {
     // Update associated cashflow record if exists
     if (existingCost.cashFlowId) {
         // Get motorcycle info for description
-        const motorcycle = await prisma.motorcycle.findUnique({
-            where: { id: motorcycleId },
-        })
         const motorName = motorcycle ? `${motorcycle.brand} ${motorcycle.customModel || motorcycle.model}` : ''
         const newDescription = body.description || existingCost.description
 
@@ -88,21 +99,21 @@ export default defineEventHandler(async (event) => {
     })
 
     // If motorcycle is sold, recalculate profit
-    const motorcycle = await prisma.motorcycle.findUnique({
+    const updatedMotorcycle = await prisma.motorcycle.findUnique({
         where: { id: motorcycleId },
         include: { saleTransaction: true },
     })
 
-    if (motorcycle?.status === 'SOLD' && motorcycle.saleTransaction) {
-        const profitIdr = motorcycle.saleTransaction.sellingPriceIdr - totalCostIdr
+    if (updatedMotorcycle?.status === 'SOLD' && updatedMotorcycle.saleTransaction) {
+        const profitIdr = updatedMotorcycle.saleTransaction.sellingPriceIdr - totalCostIdr
         let profit = profitIdr
-        if (motorcycle.saleTransaction.currency === 'USD') {
-            profit = profitIdr / motorcycle.saleTransaction.exchangeRate
+        if (updatedMotorcycle.saleTransaction.currency === 'USD') {
+            profit = profitIdr / updatedMotorcycle.saleTransaction.exchangeRate
         }
-        const profitMargin = (profitIdr / motorcycle.saleTransaction.sellingPriceIdr) * 100
+        const profitMargin = (profitIdr / updatedMotorcycle.saleTransaction.sellingPriceIdr) * 100
 
         await prisma.saleTransaction.update({
-            where: { id: motorcycle.saleTransaction.id },
+            where: { id: updatedMotorcycle.saleTransaction.id },
             data: {
                 totalCost: totalCostIdr,
                 profit,

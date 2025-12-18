@@ -8,11 +8,40 @@ datasource db {
 }
 
 // ============================================
+// USER (Simple Owner Auth)
+// ============================================
+
+model User {
+  id       String @id @default(cuid())
+  email    String @unique
+  password String // Hashed with bcrypt
+  name     String
+  role     String @default("OWNER") // OWNER only
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations to owned data
+  motorcycles     Motorcycle[]
+  products        Product[]
+  spareparts      Sparepart[]
+  suppliers       Supplier[]
+  cashFlows       CashFlow[]
+  expenses        Expense[]
+  exchangeRates   ExchangeRate[]
+  invoiceCounters InvoiceCounter[]
+
+  @@map("users")
+}
+
+// ============================================
 // MASTER DATA
 // ============================================
 
 model ExchangeRate {
   id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
   fromCurrency  String // USD
   toCurrency    String // IDR
   rate          Float
@@ -20,8 +49,9 @@ model ExchangeRate {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([fromCurrency, toCurrency, effectiveDate])
+  @@unique([userId, fromCurrency, toCurrency, effectiveDate])
   @@index([effectiveDate])
+  @@index([userId])
   @@map("exchange_rates")
 }
 
@@ -31,7 +61,9 @@ model ExchangeRate {
 
 model Motorcycle {
   id          String  @id @default(cuid())
-  vin         String  @unique
+  userId      String
+  user        User    @relation(fields: [userId], references: [id])
+  vin         String
   brand       String  @default("Harley Davidson")
   model       String
   customModel String? // Custom model name when model is "Custom"
@@ -66,8 +98,9 @@ model Motorcycle {
   costs           Cost[]
   saleTransaction SaleTransaction?
 
+  @@unique([userId, vin])
   @@index([status])
-  @@index([vin])
+  @@index([userId])
   @@index([createdAt])
   @@map("motorcycles")
 }
@@ -161,8 +194,10 @@ model SaleTransaction {
 // ============================================
 
 model CashFlow {
-  id   String @id @default(cuid())
-  type String // INCOME, OUTCOME
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  type   String // INCOME, OUTCOME
 
   // Amount in original currency
   amount   Float
@@ -191,6 +226,7 @@ model CashFlow {
 
   @@index([type, transactionDate])
   @@index([currency])
+  @@index([userId])
   @@map("cash_flows")
 }
 
@@ -200,6 +236,8 @@ model CashFlow {
 
 model Supplier {
   id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
   name      String
   phone     String?
   email     String?
@@ -210,12 +248,15 @@ model Supplier {
 
   spareparts Sparepart[]
 
+  @@index([userId])
   @@map("suppliers")
 }
 
 model Sparepart {
   id          String  @id @default(cuid())
-  sku         String  @unique
+  userId      String
+  user        User    @relation(fields: [userId], references: [id])
+  sku         String
   name        String
   category    String // SPAREPART, ACCESSORY, APPAREL, OTHER
   brand       String?
@@ -242,6 +283,8 @@ model Sparepart {
   saleItems        SparepartSaleItem[]
   stockAdjustments StockAdjustment[]
 
+  @@unique([userId, sku])
+  @@index([userId])
   @@map("spareparts")
 }
 
@@ -278,6 +321,7 @@ model StockAdjustment {
 
 model SparepartSale {
   id            String   @id @default(cuid())
+  userId        String
   invoiceNumber String   @unique
   saleDate      DateTime @default(now())
 
@@ -308,6 +352,7 @@ model SparepartSale {
   cashFlowId String?
   cashFlow   CashFlow? @relation(fields: [cashFlowId], references: [id])
 
+  @@index([userId])
   @@map("sparepart_sales")
 }
 
@@ -334,14 +379,16 @@ model SparepartSaleItem {
 // ============================================
 
 model Product {
-  id String @id @default(cuid())
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   // Category: SPAREPART, ACCESSORIES, APPAREL, CUSTOM
   category       String
   customCategory String? // When category is CUSTOM
 
   name        String
-  sku         String? @unique
+  sku         String?
   description String?
 
   // Financial
@@ -364,8 +411,10 @@ model Product {
   costs           ProductCost[]
   saleTransaction ProductSale?
 
+  @@unique([userId, sku])
   @@index([status])
   @@index([category])
+  @@index([userId])
   @@map("products")
 }
 
@@ -443,28 +492,13 @@ model ProductSale {
 }
 
 // ============================================
-// USER (Simple Owner Auth)
-// ============================================
-
-model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String // Hashed with bcrypt
-  name     String
-  role     String @default("OWNER") // OWNER only
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
-}
-
-// ============================================
 // EXPENSES (Operational Costs)
 // ============================================
 
 model Expense {
   id           String @id @default(cuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id])
   category     String // RENT, UTILITIES, SALARY, MARKETING, MAINTENANCE, OTHER
   description  String
   amount       Float
@@ -485,6 +519,7 @@ model Expense {
 
   @@index([category])
   @@index([transactionDate])
+  @@index([userId])
   @@map("expenses")
 }
 
@@ -494,12 +529,15 @@ model Expense {
 
 model InvoiceCounter {
   id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
   prefix     String // MTR, PRD, SPR
   year       Int
   month      Int
   lastNumber Int      @default(0)
   updatedAt  DateTime @updatedAt
 
-  @@unique([prefix, year, month])
+  @@unique([userId, prefix, year, month])
+  @@index([userId])
   @@map("invoice_counters")
 }

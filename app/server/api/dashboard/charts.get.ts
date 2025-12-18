@@ -1,15 +1,18 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
     const months = parseInt(query.months as string) || 6
 
     const now = new Date()
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
 
-    // Get cash flows for the period
+    // Get cash flows for the period for this user
     const cashflows = await prisma.cashFlow.findMany({
         where: {
+            userId,
             transactionDate: { gte: startDate },
         },
         orderBy: { transactionDate: 'asc' },
@@ -36,9 +39,10 @@ export default defineEventHandler(async (event) => {
         }
     })
 
-    // Get sales with profit data
+    // Get sales with profit data for this user
     const sales = await prisma.saleTransaction.findMany({
         where: {
+            motorcycle: { userId },
             saleDate: { gte: startDate },
         },
         include: {
@@ -57,16 +61,18 @@ export default defineEventHandler(async (event) => {
         margin: sale.profitMargin,
     }))
 
-    // Status distribution
+    // Status distribution for this user
     const statusDistribution = await prisma.motorcycle.groupBy({
         by: ['status'],
+        where: { userId },
         _count: true,
     })
 
-    // Cost breakdown by component
+    // Cost breakdown by component for this user
     const costBreakdown = await prisma.cost.groupBy({
         by: ['component'],
         where: {
+            motorcycle: { userId },
             transactionDate: { gte: startDate },
         },
         _sum: { amountIdr: true },

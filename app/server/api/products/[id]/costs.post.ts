@@ -1,7 +1,9 @@
 import prisma from '~/server/utils/prisma'
 import { convertToIdr } from '~/server/utils/currency'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const productId = getRouterParam(event, 'id')
     const body = await readBody(event)
 
@@ -19,8 +21,9 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const product = await prisma.product.findUnique({
-        where: { id: productId },
+    // Verify product belongs to user
+    const product = await prisma.product.findFirst({
+        where: { id: productId, userId },
     })
 
     if (!product) {
@@ -39,6 +42,7 @@ export default defineEventHandler(async (event) => {
     // Create cash flow
     const cashFlow = await prisma.cashFlow.create({
         data: {
+            userId,
             type: 'OUTCOME',
             amount: parseFloat(body.amount),
             currency: body.currency,

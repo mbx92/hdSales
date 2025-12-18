@@ -1,8 +1,10 @@
 import prisma from '../../../utils/prisma'
 import { convertToIdr } from '../../../utils/currency'
 import { generateInvoiceNumber } from '../../../utils/generateInvoice'
+import { requireUser } from '../../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
 
@@ -20,8 +22,9 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const motorcycle = await prisma.motorcycle.findUnique({
-        where: { id },
+    // Verify motorcycle belongs to user
+    const motorcycle = await prisma.motorcycle.findFirst({
+        where: { id, userId },
     })
 
     if (!motorcycle) {
@@ -47,7 +50,7 @@ export default defineEventHandler(async (event) => {
 
     // Generate invoice number
     const saleDate = body.saleDate ? new Date(body.saleDate) : new Date()
-    const invoiceNumber = await generateInvoiceNumber('DHD', saleDate)
+    const invoiceNumber = await generateInvoiceNumber('DHD', saleDate, userId)
 
     // Convert selling price to IDR
     const { amountIdr: sellingPriceIdr, exchangeRate } = await convertToIdr(
@@ -73,6 +76,7 @@ export default defineEventHandler(async (event) => {
     // Create cash flow
     const cashFlow = await prisma.cashFlow.create({
         data: {
+            userId,
             type: 'INCOME',
             amount: parseFloat(body.sellingPrice),
             currency: body.currency,

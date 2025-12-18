@@ -1,6 +1,8 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
 
@@ -11,8 +13,8 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const product = await prisma.product.findUnique({
-        where: { id },
+    const product = await prisma.product.findFirst({
+        where: { id, userId },
     })
 
     if (!product) {

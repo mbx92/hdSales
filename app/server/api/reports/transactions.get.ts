@@ -1,6 +1,8 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
 
     const type = query.type as string | undefined // INCOME, OUTCOME, or all
@@ -9,7 +11,7 @@ export default defineEventHandler(async (event) => {
     const startDate = query.startDate as string | undefined
     const endDate = query.endDate as string | undefined
 
-    const where: any = {}
+    const where: any = { userId }
 
     // Filter by type
     if (type && type !== 'all') {
@@ -62,12 +64,18 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // Build date filter for sales
+    // Build date filter for sales (with userId)
     const salesDateFilter = dateStart ? {
+        motorcycle: { userId },
         saleDate: { gte: dateStart, lte: dateEnd }
-    } : {}
+    } : { motorcycle: { userId } }
 
-    // Get all transactions and profit data
+    const sparepartSalesDateFilter = dateStart ? {
+        userId,
+        saleDate: { gte: dateStart, lte: dateEnd }
+    } : { userId }
+
+    // Get all transactions and profit data for this user
     const [transactions, motorcycleProfit, sparepartSales] = await Promise.all([
         prisma.cashFlow.findMany({
             where,
@@ -83,7 +91,7 @@ export default defineEventHandler(async (event) => {
         }),
         // Get sparepart sales with items for margin calculation
         prisma.sparepartSale.findMany({
-            where: salesDateFilter,
+            where: sparepartSalesDateFilter,
             include: {
                 items: {
                     include: {
@@ -133,8 +141,9 @@ export default defineEventHandler(async (event) => {
         }
     })
 
-    // Get unique categories for filter dropdown
+    // Get unique categories for filter dropdown (for this user)
     const categories = await prisma.cashFlow.findMany({
+        where: { userId },
         select: { category: true },
         distinct: ['category'],
     })
@@ -145,7 +154,7 @@ export default defineEventHandler(async (event) => {
             totalIncome,
             totalOutcome,
             netBalance,
-            netProfit, // Total margin from motor + sparepart
+            netProfit,
             motorcycleProfit: motorcycleProfitTotal,
             sparepartProfit: sparepartProfitTotal,
             transactionCount: transactions.length,
@@ -161,4 +170,3 @@ export default defineEventHandler(async (event) => {
         },
     }
 })
-

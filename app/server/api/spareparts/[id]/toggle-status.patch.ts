@@ -1,14 +1,16 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const id = event.context.params?.id
 
     if (!id) {
         throw createError({ statusCode: 400, message: 'ID required' })
     }
 
-    const sparepart = await prisma.sparepart.findUnique({
-        where: { id },
+    const sparepart = await prisma.sparepart.findFirst({
+        where: { id, userId },
         select: { status: true }
     })
 

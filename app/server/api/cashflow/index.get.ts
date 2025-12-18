@@ -1,6 +1,8 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
 
     const type = query.type as string | undefined
@@ -11,7 +13,7 @@ export default defineEventHandler(async (event) => {
     const limit = parseInt(query.limit as string) || 50
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = { userId }
 
     if (type) {
         where.type = type

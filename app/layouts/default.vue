@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconSettings, IconWallet } from '@tabler/icons-vue'
+import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconSettings, IconWallet, IconUsers } from '@tabler/icons-vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const { alertState, closeAlert } = useAlert()
 
-const menuItems = [
+const baseMenuItems = [
   { path: '/', label: 'Dashboard', icon: IconHome },
   { path: '/motorcycles', label: 'Motor', icon: IconMotorbike },
   { path: '/products', label: 'Products', icon: IconBox },
@@ -15,8 +15,16 @@ const menuItems = [
   { path: '/reports', label: 'Laporan', icon: IconReportAnalytics },
   { path: '/cashflow', label: 'Cash Flow', icon: IconChartBar },
   { path: '/settings/suppliers', label: 'Suppliers', icon: IconTruck },
-  { path: '/account', label: 'Pengaturan', icon: IconSettings },
 ]
+
+const menuItems = computed(() => {
+  const items = [...baseMenuItems]
+  // Add Users menu only for OWNER
+  if (authStore.user?.role === 'OWNER') {
+    items.push({ path: '/settings/users', label: 'Kelola User', icon: IconUsers })
+  }
+  return items
+})
 
 const sidebarOpen = ref(true)
 const isMobile = ref(false)

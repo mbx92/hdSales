@@ -1,6 +1,8 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const productId = getRouterParam(event, 'id')
     const costId = getRouterParam(event, 'costId')
     const body = await readBody(event)
@@ -9,6 +11,18 @@ export default defineEventHandler(async (event) => {
         throw createError({
             statusCode: 400,
             message: 'ID tidak valid',
+        })
+    }
+
+    // Verify product belongs to user
+    const product = await prisma.product.findFirst({
+        where: { id: productId, userId },
+    })
+
+    if (!product) {
+        throw createError({
+            statusCode: 404,
+            message: 'Produk tidak ditemukan',
         })
     }
 
@@ -55,10 +69,6 @@ export default defineEventHandler(async (event) => {
 
     // Update associated cashflow record if exists
     if (existingCost.cashFlowId) {
-        // Get product info for description
-        const product = await prisma.product.findUnique({
-            where: { id: productId },
-        })
         const productName = product?.name || ''
         const newDescription = body.description || existingCost.description
 
@@ -88,21 +98,21 @@ export default defineEventHandler(async (event) => {
     })
 
     // If product is sold, recalculate profit
-    const product = await prisma.product.findUnique({
+    const updatedProduct = await prisma.product.findUnique({
         where: { id: productId },
         include: { saleTransaction: true },
     })
 
-    if (product?.status === 'SOLD' && product.saleTransaction) {
-        const profitIdr = product.saleTransaction.sellingPriceIdr - totalCostIdr
+    if (updatedProduct?.status === 'SOLD' && updatedProduct.saleTransaction) {
+        const profitIdr = updatedProduct.saleTransaction.sellingPriceIdr - totalCostIdr
         let profit = profitIdr
-        if (product.saleTransaction.currency === 'USD') {
-            profit = profitIdr / product.saleTransaction.exchangeRate
+        if (updatedProduct.saleTransaction.currency === 'USD') {
+            profit = profitIdr / updatedProduct.saleTransaction.exchangeRate
         }
-        const profitMargin = (profitIdr / product.saleTransaction.sellingPriceIdr) * 100
+        const profitMargin = (profitIdr / updatedProduct.saleTransaction.sellingPriceIdr) * 100
 
         await prisma.productSale.update({
-            where: { id: product.saleTransaction.id },
+            where: { id: updatedProduct.saleTransaction.id },
             data: {
                 totalCost: totalCostIdr,
                 profit,

@@ -1,6 +1,8 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
 
     // Parse date filters
@@ -31,9 +33,10 @@ export default defineEventHandler(async (event) => {
             startDate = new Date(now.getFullYear(), now.getMonth(), 1)
     }
 
-    // Get motorcycle sales with costs
+    // Get motorcycle sales with costs for this user
     const motorcycleSales = await prisma.saleTransaction.findMany({
         where: {
+            motorcycle: { userId },
             saleDate: {
                 gte: startDate,
                 lte: endDate,
@@ -62,9 +65,10 @@ export default defineEventHandler(async (event) => {
         ],
     })
 
-    // Get product sales with costs
+    // Get product sales with costs for this user
     const productSales = await prisma.productSale.findMany({
         where: {
+            product: { userId },
             saleDate: {
                 gte: startDate,
                 lte: endDate,
@@ -92,9 +96,10 @@ export default defineEventHandler(async (event) => {
         ],
     })
 
-    // Get expenses
+    // Get expenses for this user
     const expenses = await prisma.expense.findMany({
         where: {
+            userId,
             transactionDate: {
                 gte: startDate,
                 lte: endDate,
@@ -118,9 +123,10 @@ export default defineEventHandler(async (event) => {
 
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amountIdr, 0)
 
-    // Get sparepart sales (services & spareparts via POS)
+    // Get sparepart sales for this user
     const sparepartSales = await prisma.sparepartSale.findMany({
         where: {
+            userId,
             saleDate: {
                 gte: startDate,
                 lte: endDate,
@@ -187,7 +193,6 @@ export default defineEventHandler(async (event) => {
             }
             sparepartCategories[category].count++
             sparepartCategories[category].revenue += item.subtotal
-            // HPP is based on purchase price (for services, purchasePrice is typically 0)
             const hpp = item.sparepart.purchasePrice * item.quantity
             sparepartCategories[category].hpp += hpp
             sparepartCategories[category].profit += (item.subtotal - hpp)
@@ -203,12 +208,12 @@ export default defineEventHandler(async (event) => {
                 return itemSum + (item.sparepart.purchasePrice * item.quantity)
             }, 0)
         }, 0),
-        totalProfit: 0, // Will be calculated
+        totalProfit: 0,
         categories: sparepartCategories,
     }
     sparepartStats.totalProfit = sparepartStats.totalRevenue - sparepartStats.totalHPP
 
-    // Summary (now includes sparepart sales)
+    // Summary
     const totalRevenue = motorcycleStats.totalRevenue + productStats.totalRevenue + sparepartStats.totalRevenue
     const totalHPP = motorcycleStats.totalHPP + productStats.totalHPP + sparepartStats.totalHPP
     const grossProfit = totalRevenue - totalHPP
@@ -257,7 +262,6 @@ export default defineEventHandler(async (event) => {
                 amount: c.amountIdr,
             })),
         })),
-        // Add sparepart/service sales
         ...sparepartSales.map(s => {
             const totalHpp = s.items.reduce((sum, item) => sum + (item.sparepart.purchasePrice * item.quantity), 0)
             const profit = s.total - totalHpp
@@ -325,4 +329,3 @@ export default defineEventHandler(async (event) => {
         salesDetails,
     }
 })
-

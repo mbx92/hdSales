@@ -1,7 +1,9 @@
 import prisma from '~/server/utils/prisma'
 import { convertToIdr } from '~/server/utils/currency'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const body = await readBody(event)
 
     if (!body.category || !body.name) {
@@ -11,9 +13,10 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Create product
+    // Create product with userId
     const product = await prisma.product.create({
         data: {
+            userId,
             category: body.category,
             customCategory: body.customCategory,
             name: body.name,
@@ -37,6 +40,7 @@ export default defineEventHandler(async (event) => {
         // Create cash flow for purchase
         const cashFlow = await prisma.cashFlow.create({
             data: {
+                userId,
                 type: 'OUTCOME',
                 amount: parseFloat(body.purchasePrice),
                 currency: body.currency || 'IDR',

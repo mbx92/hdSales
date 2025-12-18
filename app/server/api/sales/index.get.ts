@@ -1,9 +1,11 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
 
-    const type = query.type as string || 'motorcycle' // motorcycle, sparepart, all
+    const type = query.type as string || 'motorcycle' // motorcycle, sparepart, product, all
     const startDate = query.startDate as string | undefined
     const endDate = query.endDate as string | undefined
     const page = parseInt(query.page as string) || 1
@@ -16,9 +18,11 @@ export default defineEventHandler(async (event) => {
         if (endDate) dateFilter.lte = new Date(endDate)
     }
 
-    // Handle motorcycle sales
+    // Handle motorcycle sales - filter by motorcycle owner
     if (type === 'motorcycle') {
-        const where: any = {}
+        const where: any = {
+            motorcycle: { userId }
+        }
         if (startDate || endDate) {
             where.saleDate = dateFilter
         }
@@ -59,9 +63,11 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // Handle product sales
+    // Handle product sales - filter by product owner
     if (type === 'product') {
-        const where: any = {}
+        const where: any = {
+            product: { userId }
+        }
         if (startDate || endDate) {
             where.saleDate = dateFilter
         }
@@ -101,9 +107,9 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // Handle combined sales (all)
-    const motorcycleWhere: any = {}
-    const sparepartWhere: any = {}
+    // Handle combined sales (all) - filter by user
+    const motorcycleWhere: any = { motorcycle: { userId } }
+    const sparepartWhere: any = { userId }
 
     if (startDate || endDate) {
         motorcycleWhere.saleDate = dateFilter

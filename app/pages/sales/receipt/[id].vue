@@ -4,6 +4,10 @@ import { IconPrinter, IconDownload } from '@tabler/icons-vue'
 const route = useRoute()
 const id = route.params.id as string
 const { showError } = useAlert()
+const authStore = useAuthStore()
+
+// Get logged-in user name for signature
+const sellerName = computed(() => authStore.user?.name || 'DIGARASI')
 
 const { data: sale, error } = await useFetch(`/api/sales/${id}`)
 
@@ -376,11 +380,11 @@ const handleExportPDF = async () => {
     
     currentY += 30
     
-    // Name: ADI MAS SUDARMA
+    // Name from logged-in user
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
     doc.setFontSize(10)
-    doc.text('ADI MAS SUDARMA', signatureX + 20, currentY, { align: 'center' })
+    doc.text(sellerName.value.toUpperCase(), signatureX + 20, currentY, { align: 'center' })
     
     // Line separator
     currentY += 2
@@ -569,7 +573,7 @@ const handleExportPDF = async () => {
               />
             </div>
             <div class="h-2"></div>
-            <p class="font-semibold text-gray-800">ADI MAS SUDARMA</p>
+            <p class="font-semibold text-gray-800">{{ sellerName.toUpperCase() }}</p>
             <div class="border-t-2 border-gray-400 w-40 mx-auto">
               <p class="font-semibold text-gray-800">DIGARASI</p>
             </div>

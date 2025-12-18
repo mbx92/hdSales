@@ -1,9 +1,13 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
-export default defineEventHandler(async () => {
-    // Get motors that are not sold
+export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
+
+    // Get motors that are not sold for this user
     const motorcycles = await prisma.motorcycle.findMany({
         where: {
+            userId,
             status: { not: 'SOLD' },
         },
         include: {
@@ -15,9 +19,10 @@ export default defineEventHandler(async () => {
         ],
     })
 
-    // Get products that are not sold
+    // Get products that are not sold for this user
     const products = await prisma.product.findMany({
         where: {
+            userId,
             status: { not: 'SOLD' },
         },
         include: {
@@ -29,9 +34,10 @@ export default defineEventHandler(async () => {
         ],
     })
 
-    // Get spareparts with stock > 0 (exclude SERVICE category)
+    // Get spareparts with stock > 0 for this user (exclude SERVICE category)
     const spareparts = await prisma.sparepart.findMany({
         where: {
+            userId,
             stock: { gt: 0 },
             category: { not: 'SERVICE' },
             status: 'ACTIVE',

@@ -1,6 +1,8 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const body = await readBody(event)
 
     // Validate required fields
@@ -11,9 +13,12 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Check if VIN already exists
-    const existingMotorcycle = await prisma.motorcycle.findUnique({
-        where: { vin: body.vin },
+    // Check if VIN already exists for this user
+    const existingMotorcycle = await prisma.motorcycle.findFirst({
+        where: { 
+            userId,
+            vin: body.vin 
+        },
     })
 
     if (existingMotorcycle) {
@@ -25,6 +30,7 @@ export default defineEventHandler(async (event) => {
 
     const motorcycle = await prisma.motorcycle.create({
         data: {
+            userId,
             vin: body.vin,
             brand: body.brand || 'Harley Davidson',
             model: body.model,

@@ -1,6 +1,8 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const sparepartId = getRouterParam(event, 'id')
     const body = await readBody(event)
 
@@ -27,9 +29,9 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Get sparepart
-    const sparepart = await prisma.sparepart.findUnique({
-        where: { id: sparepartId },
+    // Get sparepart - verify ownership
+    const sparepart = await prisma.sparepart.findFirst({
+        where: { id: sparepartId, userId },
     })
 
     if (!sparepart) {
@@ -70,9 +72,10 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // Create cashflow entry
+    // Create cashflow entry with userId
     const cashFlow = await prisma.cashFlow.create({
         data: {
+            userId,
             type: cashFlowType,
             amount: totalAmount,
             currency: sparepart.currency,

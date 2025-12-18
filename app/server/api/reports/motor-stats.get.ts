@@ -1,9 +1,13 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
-export default defineEventHandler(async () => {
-    // Count motorcycles by status
+export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
+
+    // Count motorcycles by status for this user
     const statusCounts = await prisma.motorcycle.groupBy({
         by: ['status'],
+        where: { userId },
         _count: {
             status: true,
         },

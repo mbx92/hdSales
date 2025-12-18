@@ -1,7 +1,9 @@
 import prisma from '../../utils/prisma'
 import { generateInvoiceNumber } from '../../utils/generateInvoice'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const body = await readBody(event)
     const items = body.items as Array<{ id: string; quantity: number; price: number; itemType?: string }>
 
@@ -16,11 +18,11 @@ export default defineEventHandler(async (event) => {
         const sparepartItems: Array<{ id: string; quantity: number; price: number; isService: boolean; name: string }> = []
         const productItems: Array<{ id: string; price: number; name: string }> = []
 
-        // Check stock & calculate subtotals
+        // Check stock & calculate subtotals - validate ownership
         for (const item of items) {
             if (item.itemType === 'product') {
-                // Handle Product items
-                const product = await tx.product.findUnique({ where: { id: item.id } })
+                // Handle Product items - verify belongs to user
+                const product = await tx.product.findFirst({ where: { id: item.id, userId } })
                 if (!product) throw createError({ statusCode: 400, message: `Produk ID ${item.id} tidak ditemukan` })
                 if (product.status !== 'AVAILABLE') {
                     throw createError({ statusCode: 400, message: `Produk ${product.name} tidak tersedia` })
@@ -28,8 +30,8 @@ export default defineEventHandler(async (event) => {
                 productItems.push({ id: item.id, price: item.price, name: product.name })
                 productSubtotal += item.price
             } else {
-                // Handle Sparepart items
-                const sparepart = await tx.sparepart.findUnique({ where: { id: item.id } })
+                // Handle Sparepart items - verify belongs to user
+                const sparepart = await tx.sparepart.findFirst({ where: { id: item.id, userId } })
                 if (!sparepart) throw createError({ statusCode: 400, message: `Sparepart ID ${item.id} tidak ditemukan` })
 
                 const isService = sparepart.category === 'SERVICE'
@@ -55,7 +57,7 @@ export default defineEventHandler(async (event) => {
         const productTotalAfterDiscount = Math.max(0, productSubtotal - productDiscount)
         const grandTotal = sparepartTotal + productTotalAfterDiscount
 
-        const invoiceNumber = await generateInvoiceNumber('DHD', new Date())
+        const invoiceNumber = await generateInvoiceNumber('SPR', new Date(), userId)
         const productSaleIds: string[] = []
 
         // Create CashFlow Entry for SPAREPART/SERVICE only (if any)
@@ -63,6 +65,7 @@ export default defineEventHandler(async (event) => {
         if (sparepartItems.length > 0) {
             const cashFlow = await tx.cashFlow.create({
                 data: {
+                    userId,
                     type: 'INCOME',
                     amount: sparepartTotal,
                     currency: 'IDR',
@@ -84,6 +87,7 @@ export default defineEventHandler(async (event) => {
             // Create ProductSale cashflow
             const productCashFlow = await tx.cashFlow.create({
                 data: {
+                    userId,
                     type: 'INCOME',
                     amount: item.price,
                     currency: 'IDR',
@@ -131,6 +135,7 @@ export default defineEventHandler(async (event) => {
         if (!cashFlowId && productItems.length > 0) {
             const dummyCashFlow = await tx.cashFlow.create({
                 data: {
+                    userId,
                     type: 'INCOME',
                     amount: 0,
                     currency: 'IDR',
@@ -147,6 +152,7 @@ export default defineEventHandler(async (event) => {
         // Create Sale Transaction record
         const sale = await tx.sparepartSale.create({
             data: {
+                userId,
                 invoiceNumber,
                 customerName: body.customerName,
                 customerPhone: body.customerPhone,
@@ -186,5 +192,3 @@ export default defineEventHandler(async (event) => {
         }
     })
 })
-
-

@@ -1,6 +1,8 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const body = await readBody(event)
 
     if (!body.sku || !body.name) {
@@ -10,9 +12,9 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Check SKU duplicate
-    const existing = await prisma.sparepart.findUnique({
-        where: { sku: body.sku }
+    // Check SKU duplicate for this user
+    const existing = await prisma.sparepart.findFirst({
+        where: { userId, sku: body.sku }
     })
 
     if (existing) {
@@ -24,6 +26,7 @@ export default defineEventHandler(async (event) => {
 
     const sparepart = await prisma.sparepart.create({
         data: {
+            userId,
             sku: body.sku,
             name: body.name,
             category: body.category,

@@ -1,18 +1,33 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const id = event.context.params?.id
     const body = await readBody(event)
 
+    // Verify sparepart belongs to user
+    const existing = await prisma.sparepart.findFirst({
+        where: { id, userId }
+    })
+
+    if (!existing) {
+        throw createError({
+            statusCode: 404,
+            message: 'Sparepart tidak ditemukan'
+        })
+    }
+
     // Check SKU duplicate if changed
-    if (body.sku) {
-        const existing = await prisma.sparepart.findFirst({
+    if (body.sku && body.sku !== existing.sku) {
+        const skuExists = await prisma.sparepart.findFirst({
             where: {
+                userId,
                 sku: body.sku,
                 id: { not: id }
             }
         })
-        if (existing) {
+        if (skuExists) {
             throw createError({
                 statusCode: 400,
                 message: 'SKU sudah digunakan'

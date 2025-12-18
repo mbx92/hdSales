@@ -1,6 +1,8 @@
 import prisma from '~/server/utils/prisma'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const body = await readBody(event)
 
     if (!body.category || !body.description || !body.amount) {
@@ -19,6 +21,7 @@ export default defineEventHandler(async (event) => {
         // Create CashFlow entry (OUTCOME)
         const cashFlow = await tx.cashFlow.create({
             data: {
+                userId,
                 type: 'OUTCOME',
                 amount,
                 currency,
@@ -33,6 +36,7 @@ export default defineEventHandler(async (event) => {
         // Create Expense record
         const expense = await tx.expense.create({
             data: {
+                userId,
                 category: body.category,
                 description: body.description,
                 amount,

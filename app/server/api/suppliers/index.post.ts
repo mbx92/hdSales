@@ -1,6 +1,8 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const body = await readBody(event)
 
     if (!body.name) {
@@ -12,6 +14,7 @@ export default defineEventHandler(async (event) => {
 
     const supplier = await prisma.supplier.create({
         data: {
+            userId,
             name: body.name,
             phone: body.phone,
             email: body.email,

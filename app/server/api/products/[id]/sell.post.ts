@@ -1,8 +1,10 @@
 import prisma from '~/server/utils/prisma'
 import { convertToIdr } from '~/server/utils/currency'
 import { generateInvoiceNumber } from '~/server/utils/generateInvoice'
+import { requireUser } from '~/server/utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
 
@@ -20,8 +22,8 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const product = await prisma.product.findUnique({
-        where: { id },
+    const product = await prisma.product.findFirst({
+        where: { id, userId },
     })
 
     if (!product) {
@@ -47,7 +49,7 @@ export default defineEventHandler(async (event) => {
 
     // Generate invoice number
     const saleDate = body.saleDate ? new Date(body.saleDate) : new Date()
-    const invoiceNumber = await generateInvoiceNumber('DHD', saleDate)
+    const invoiceNumber = await generateInvoiceNumber('PRD', saleDate, userId)
 
     // Convert selling price to IDR
     const { amountIdr: sellingPriceIdr, exchangeRate } = await convertToIdr(
@@ -73,6 +75,7 @@ export default defineEventHandler(async (event) => {
     // Create cash flow
     const cashFlow = await prisma.cashFlow.create({
         data: {
+            userId,
             type: 'INCOME',
             amount: parseFloat(body.sellingPrice),
             currency: body.currency,
