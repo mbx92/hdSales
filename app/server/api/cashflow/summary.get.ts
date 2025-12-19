@@ -1,13 +1,15 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const query = getQuery(event)
 
     const period = query.period as string || 'month' // day, week, month, year
     const startDate = query.startDate as string | undefined
     const endDate = query.endDate as string | undefined
 
-    const where: any = {}
+    const where: any = { userId }
 
     if (startDate || endDate) {
         where.transactionDate = {}
