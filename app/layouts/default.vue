@@ -114,15 +114,15 @@ const logout = async () => {
         <!-- User Info -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-base-300">
           <div v-if="authStore.user" class="flex items-center gap-3">
-            <div class="avatar placeholder">
+            <NuxtLink to="/account" @click="closeSidebar" class="avatar placeholder cursor-pointer hover:ring-2 hover:ring-primary rounded-full transition-all" title="Pengaturan Akun">
               <div class="bg-primary text-primary-content rounded-full w-10">
                 <span>{{ authStore.user.name?.charAt(0) || 'U' }}</span>
               </div>
-            </div>
-            <div v-if="sidebarOpen" class="flex-1 animate-fade-in">
+            </NuxtLink>
+            <NuxtLink v-if="sidebarOpen" to="/account" @click="closeSidebar" class="flex-1 animate-fade-in hover:text-primary transition-colors" title="Pengaturan Akun">
               <p class="text-sm font-medium">{{ authStore.user.name }}</p>
               <p class="text-xs text-base-content/60">{{ authStore.user.role }}</p>
-            </div>
+            </NuxtLink>
             <button
               v-if="sidebarOpen"
               @click="logout"
