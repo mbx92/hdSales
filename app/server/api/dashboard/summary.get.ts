@@ -17,6 +17,8 @@ export default defineEventHandler(async (event) => {
         monthlyOutcome,
         monthlyMotorcycleProfit,
         monthlySparepartSales,
+        monthlyProductProfit,
+        monthlyExpenses,
     ] = await Promise.all([
         prisma.motorcycle.count({ where: { userId } }),
         prisma.motorcycle.count({ where: { userId, status: 'INSPECTION' } }),
@@ -62,6 +64,22 @@ export default defineEventHandler(async (event) => {
                 }
             }
         }),
+        // Get total profit from product sales
+        prisma.productSale.aggregate({
+            where: {
+                product: { userId },
+                saleDate: { gte: startOfMonth, lte: endOfMonth },
+            },
+            _sum: { profit: true },
+        }),
+        // Get total expenses
+        prisma.expense.aggregate({
+            where: {
+                userId,
+                transactionDate: { gte: startOfMonth, lte: endOfMonth },
+            },
+            _sum: { amountIdr: true },
+        }),
     ])
 
     const totalIncomeIdr = monthlyIncome._sum.amountIdr || 0
@@ -69,6 +87,9 @@ export default defineEventHandler(async (event) => {
 
     // Calculate motorcycle profit (margin from sales)
     const motorcycleProfit = monthlyMotorcycleProfit._sum?.profit || 0
+
+    // Calculate product profit (margin from product sales)
+    const productProfit = monthlyProductProfit._sum?.profit || 0
 
     // Calculate sparepart profit (margin = sellingPrice - purchasePrice per item)
     const sparepartProfit = monthlySparepartSales.reduce((total, sale) => {
@@ -78,8 +99,14 @@ export default defineEventHandler(async (event) => {
         }, 0)
     }, 0)
 
-    // Total profit = motorcycle margin + sparepart margin
-    const totalProfitIdr = motorcycleProfit + sparepartProfit
+    // Get total expenses
+    const totalExpenses = monthlyExpenses._sum?.amountIdr || 0
+
+    // Total gross profit = motorcycle margin + product margin + sparepart margin
+    const grossProfit = motorcycleProfit + productProfit + sparepartProfit
+
+    // Net profit = gross profit - expenses
+    const totalProfitIdr = grossProfit - totalExpenses
 
     // Calculate available inventory value (all in IDR now)
     const availableMotorcycles = await prisma.motorcycle.findMany({
@@ -101,8 +128,11 @@ export default defineEventHandler(async (event) => {
             income: totalIncomeIdr,
             outcome: totalOutcomeIdr,
             netProfit: totalProfitIdr,
+            grossProfit,
             motorcycleProfit,
+            productProfit,
             sparepartProfit,
+            expenses: totalExpenses,
             period: {
                 start: startOfMonth,
                 end: endOfMonth,
