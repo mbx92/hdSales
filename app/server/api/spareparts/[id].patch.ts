@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     if (body.currency) data.currency = body.currency
     if (body.stock !== undefined) data.stock = parseInt(body.stock)
     if (body.minStock !== undefined) data.minStock = parseInt(body.minStock)
-    if (body.supplierId !== undefined) data.supplierId = body.supplierId
+    if (body.supplierId !== undefined) data.supplierId = body.supplierId || null
     if (body.status) data.status = body.status
 
     const sparepart = await prisma.sparepart.update({
