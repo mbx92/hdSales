@@ -1,5 +1,6 @@
 import prisma from '~/server/utils/prisma'
 import { requireUser } from '~/server/utils/requireUser'
+import { createProductSku, isMeaningfulSku } from '~/server/utils/inventorySku'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
@@ -38,7 +39,7 @@ export default defineEventHandler(async (event) => {
             category: body.category || product.category,
             customCategory: body.customCategory !== undefined ? body.customCategory : product.customCategory,
             name: body.name || product.name,
-            sku: body.sku !== undefined ? body.sku : product.sku,
+            sku: isMeaningfulSku(product.sku) ? product.sku : createProductSku(product.id),
             description: body.description !== undefined ? body.description : product.description,
             currency: body.currency || product.currency,
             sellingPrice: body.sellingPrice !== undefined ? parseFloat(body.sellingPrice) : product.sellingPrice,

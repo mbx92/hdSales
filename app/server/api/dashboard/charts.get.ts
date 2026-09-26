@@ -57,7 +57,10 @@ export default defineEventHandler(async (event) => {
     // Profit by motorcycle
     const profitByMotorcycle = sales.map(sale => ({
         label: `${sale.motorcycle.model} ${sale.motorcycle.year}`,
-        profit: sale.profit,
+        // Dashboard financial values are normalized to IDR.
+        profit: sale.currency === 'USD'
+            ? sale.profit * sale.exchangeRate
+            : sale.profit,
         margin: sale.profitMargin,
     }))
 

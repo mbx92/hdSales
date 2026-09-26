@@ -166,35 +166,35 @@ const handleExportPDF = async () => {
 
         <template v-else-if="report">
             <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
                         <p class="text-xs text-base-content/60">Total Revenue</p>
-                        <p class="text-2xl font-bold text-success">{{ formatCurrency(report.summary.totalRevenue) }}</p>
+                        <p class="report-value text-xl 2xl:text-2xl font-bold text-success">{{ formatCurrency(report.summary.totalRevenue) }}</p>
                         <p class="text-xs text-base-content/60">{{ report.summary.totalTransactions }} transaksi</p>
                     </div>
                 </div>
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
                         <p class="text-xs text-base-content/60">Total HPP</p>
-                        <p class="text-2xl font-bold text-error">{{ formatCurrency(report.summary.totalHPP) }}</p>
+                        <p class="report-value text-xl 2xl:text-2xl font-bold text-error">{{ formatCurrency(report.summary.totalHPP) }}</p>
                     </div>
                 </div>
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
                         <p class="text-xs text-base-content/60">Gross Profit</p>
-                        <p :class="['text-2xl font-bold', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
+                        <p :class="['report-value text-xl 2xl:text-2xl font-bold', report.summary.grossProfit >= 0 ? 'text-success' : 'text-error']">
                             {{ formatCurrency(report.summary.grossProfit) }}
                         </p>
                     </div>
                 </div>
-                <div class="card bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
-                    <div class="card-body py-4">
+                <div class="card report-summary-card bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
+                    <div class="card-body p-4">
                         <p class="text-xs text-base-content/60">Profit Margin</p>
                         <div class="flex items-center gap-2">
-                            <IconTrendingUp v-if="report.summary.profitMargin >= 0" class="w-6 h-6 text-success" :stroke-width="1.5" />
-                            <IconTrendingDown v-else class="w-6 h-6 text-error" :stroke-width="1.5" />
-                            <span :class="['text-2xl font-bold', report.summary.profitMargin >= 0 ? 'text-success' : 'text-error']">
+                            <IconTrendingUp v-if="report.summary.profitMargin >= 0" class="report-summary-icon w-6 h-6 text-success" :stroke-width="1.5" />
+                            <IconTrendingDown v-else class="report-summary-icon w-6 h-6 text-error" :stroke-width="1.5" />
+                            <span :class="['report-value text-xl 2xl:text-2xl font-bold', report.summary.profitMargin >= 0 ? 'text-success' : 'text-error']">
                                 {{ report.summary.profitMargin.toFixed(1) }}%
                             </span>
                         </div>
@@ -396,18 +396,18 @@ const handleExportPDF = async () => {
                                 <span class="text-base-content/60">Jumlah Terjual</span>
                                 <span class="badge badge-primary">{{ report.categoryBreakdown.motorcycle.count }}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="report-stat-row">
                                 <span class="text-base-content/60">Revenue</span>
-                                <span class="font-mono text-success">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalRevenue) }}</span>
+                                <span class="report-stat-value font-mono text-success">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalRevenue) }}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="report-stat-row">
                                 <span class="text-base-content/60">HPP</span>
-                                <span class="font-mono text-error">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalHPP) }}</span>
+                                <span class="report-stat-value font-mono text-error">{{ formatCurrency(report.categoryBreakdown.motorcycle.totalHPP) }}</span>
                             </div>
                             <div class="divider my-1"></div>
-                            <div class="flex justify-between">
+                            <div class="report-stat-row">
                                 <span class="font-medium">Profit</span>
-                                <span :class="['font-mono font-bold', report.categoryBreakdown.motorcycle.totalProfit >= 0 ? 'text-success' : 'text-error']">
+                                <span :class="['report-stat-value font-mono font-bold', report.categoryBreakdown.motorcycle.totalProfit >= 0 ? 'text-success' : 'text-error']">
                                     {{ formatCurrency(report.categoryBreakdown.motorcycle.totalProfit) }}
                                 </span>
                             </div>
@@ -424,18 +424,18 @@ const handleExportPDF = async () => {
                                 <span class="text-base-content/60">Jumlah Terjual</span>
                                 <span class="badge badge-secondary">{{ report.categoryBreakdown.product.count }}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="report-stat-row">
                                 <span class="text-base-content/60">Revenue</span>
-                                <span class="font-mono text-success">{{ formatCurrency(report.categoryBreakdown.product.totalRevenue) }}</span>
+                                <span class="report-stat-value font-mono text-success">{{ formatCurrency(report.categoryBreakdown.product.totalRevenue) }}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="report-stat-row">
                                 <span class="text-base-content/60">HPP</span>
-                                <span class="font-mono text-error">{{ formatCurrency(report.categoryBreakdown.product.totalHPP) }}</span>
+                                <span class="report-stat-value font-mono text-error">{{ formatCurrency(report.categoryBreakdown.product.totalHPP) }}</span>
                             </div>
                             <div class="divider my-1"></div>
-                            <div class="flex justify-between">
+                            <div class="report-stat-row">
                                 <span class="font-medium">Profit</span>
-                                <span :class="['font-mono font-bold', report.categoryBreakdown.product.totalProfit >= 0 ? 'text-success' : 'text-error']">
+                                <span :class="['report-stat-value font-mono font-bold', report.categoryBreakdown.product.totalProfit >= 0 ? 'text-success' : 'text-error']">
                                     {{ formatCurrency(report.categoryBreakdown.product.totalProfit) }}
                                 </span>
                             </div>
@@ -444,9 +444,9 @@ const handleExportPDF = async () => {
                         <div v-if="Object.keys(report.categoryBreakdown.product.categories).length > 0" class="mt-4">
                             <p class="text-sm text-base-content/60 mb-2">Per Kategori:</p>
                             <div class="space-y-2">
-                                <div v-for="(cat, name) in report.categoryBreakdown.product.categories" :key="name" class="flex justify-between text-sm">
-                                    <span>{{ name }} <span class="badge badge-xs">{{ cat.count }}×</span></span>
-                                    <span class="font-mono">{{ formatCurrency(cat.profit) }}</span>
+                                <div v-for="(cat, name) in report.categoryBreakdown.product.categories" :key="name" class="report-stat-row text-sm">
+                                    <span class="min-w-0">{{ name }} <span class="badge badge-xs">{{ cat.count }}×</span></span>
+                                    <span class="report-stat-value font-mono">{{ formatCurrency(cat.profit) }}</span>
                                 </div>
                             </div>
                         </div>

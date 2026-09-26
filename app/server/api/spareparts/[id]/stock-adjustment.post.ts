@@ -13,12 +13,13 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const { quantity, type, reason } = body
+    const { type, reason } = body
+    const requestedQuantity = Math.abs(Number(body.quantity))
 
-    if (!quantity || quantity === 0) {
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1) {
         throw createError({
             statusCode: 400,
-            message: 'Quantity tidak boleh 0',
+            message: 'Quantity harus berupa bilangan bulat minimal 1',
         })
     }
 
@@ -49,20 +50,32 @@ export default defineEventHandler(async (event) => {
         })
     }
 
+    // The adjustment type is the source of truth for stock direction.
+    // Users enter an absolute quantity; reduction types are normalized here.
+    const isStockIncrease = type === 'PURCHASE' || type === 'RETURN'
+    const quantity = isStockIncrease ? requestedQuantity : -requestedQuantity
     const previousStock = sparepart.stock
     const newStock = previousStock + quantity
+
+    if (newStock < 0) {
+        throw createError({
+            statusCode: 400,
+            message: `Pengurangan melebihi stok saat ini (${previousStock})`,
+        })
+    }
+
     const unitCost = sparepart.purchasePrice
-    const totalAmount = Math.abs(quantity) * unitCost
+    const totalAmount = requestedQuantity * unitCost
 
     // Determine cashflow type and description
     let cashFlowType = 'OUTCOME'
     let cashFlowCategory = ''
     let cashFlowDescription = ''
 
-    if (quantity > 0) {
-        // Stock increase - purchase
+    if (isStockIncrease) {
+        // Stock increase - purchase/return
         cashFlowCategory = 'SPAREPART_PURCHASE'
-        cashFlowDescription = `Pembelian stok: ${sparepart.name} (${quantity} unit)`
+        cashFlowDescription = `${type === 'RETURN' ? 'Retur' : 'Pembelian'} stok: ${sparepart.name} (${requestedQuantity} unit)`
     } else {
         // Stock decrease - loss/adjustment
         cashFlowCategory = type === 'LOSS' ? 'SPAREPART_LOSS' : 'SPAREPART_ADJUSTMENT'

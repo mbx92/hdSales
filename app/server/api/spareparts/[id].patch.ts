@@ -1,5 +1,6 @@
 import prisma from '../../utils/prisma'
 import { requireUser } from '../../utils/requireUser'
+import { createSparepartSku, isMeaningfulSku } from '../../utils/inventorySku'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
@@ -18,27 +19,14 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Check SKU duplicate if changed
-    if (body.sku && body.sku !== existing.sku) {
-        const skuExists = await prisma.sparepart.findFirst({
-            where: {
-                userId,
-                sku: body.sku,
-                id: { not: id }
-            }
-        })
-        if (skuExists) {
-            throw createError({
-                statusCode: 400,
-                message: 'SKU sudah digunakan'
-            })
-        }
-    }
-
     const data: any = {}
-    if (body.sku) data.sku = body.sku
     if (body.name) data.name = body.name
-    if (body.category) data.category = body.category
+    if (body.category) {
+        data.category = body.category
+    }
+    if (!isMeaningfulSku(existing.sku) || (body.category && body.category !== existing.category)) {
+        data.sku = createSparepartSku(body.category || existing.category, existing.id)
+    }
     if (body.brand !== undefined) data.brand = body.brand
     if (body.description !== undefined) data.description = body.description
     if (body.purchasePrice) data.purchasePrice = parseFloat(body.purchasePrice)

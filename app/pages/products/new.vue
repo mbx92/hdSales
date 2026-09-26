@@ -5,7 +5,6 @@ const router = useRouter()
 
 const form = ref({
   name: '',
-  sku: '',
   category: 'SPAREPART',
   customCategory: '',
   description: '',
@@ -94,13 +93,13 @@ const handleSubmit = async () => {
 
             <div class="form-control">
               <label class="label">
-                <span class="label-text font-medium">SKU</span>
+                <span class="label-text font-medium">SKU Otomatis</span>
               </label>
               <input
-                v-model="form.sku"
+                value="Dibuat otomatis setelah disimpan"
                 type="text"
-                placeholder="HD-OIL-001"
                 class="input input-bordered bg-base-300 font-mono uppercase"
+                disabled
               />
             </div>
 

@@ -10,6 +10,8 @@
     "postinstall": "nuxt prepare",
     "db:push": "npx prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
+    "db:backfill-skus": "npx tsx scripts/backfill-sparepart-skus.ts",
+    "db:backfill-skus:dry-run": "npx tsx scripts/backfill-sparepart-skus.ts --dry-run",
     "db:studio": "npx prisma studio"
   },
   "dependencies": {

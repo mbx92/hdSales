@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconArrowLeft, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar, IconLayoutGrid, IconList } from '@tabler/icons-vue'
 
 const router = useRouter()
 const { showError, showWarning } = useAlert()
+const viewMode = useCookie<'grid' | 'list'>('pos-products-view-mode', {
+  default: () => 'grid',
+  sameSite: 'lax',
+})
+const stockFilter = ref<'all' | 'available' | 'out-of-stock'>('all')
 
 // Fetch spareparts
-const { data: spareparts } = await useFetch('/api/spareparts', {
+const { data: spareparts, refresh: refreshSpareparts } = await useFetch('/api/spareparts', {
   query: { status: 'ACTIVE' }
 })
 
 // Fetch products (only AVAILABLE)
-const { data: productItems } = await useFetch('/api/products', {
+const { data: productItems, refresh: refreshProducts } = await useFetch('/api/products', {
   query: { status: 'AVAILABLE' }
 })
 
@@ -60,11 +65,34 @@ const filteredProducts = computed(() => {
   ).slice(0, 5) || [] // Limit 5 suggestions
 })
 
-// Filter items for carousel - include SERVICE items and available products
+// Show every active sparepart/service and every available single product.
+// Out-of-stock spareparts remain visible but cannot be added to the cart.
 const availableProducts = computed(() => {
-  return allItems.value?.filter((p: any) => 
-    p.stock > 0 || p.category === 'SERVICE'
-  ).slice(0, 12) || []
+  return allItems.value || []
+})
+
+const isItemOutOfStock = (item: any) => {
+  return item.itemType !== 'product' && item.category !== 'SERVICE' && item.stock <= 0
+}
+
+const catalogItems = computed(() => {
+  if (stockFilter.value === 'available') {
+    return availableProducts.value.filter((item: any) => !isItemOutOfStock(item))
+  }
+
+  if (stockFilter.value === 'out-of-stock') {
+    return availableProducts.value.filter((item: any) => isItemOutOfStock(item))
+  }
+
+  return availableProducts.value
+})
+
+const availableItemCount = computed(() => {
+  return availableProducts.value.filter((item: any) => !isItemOutOfStock(item)).length
+})
+
+const outOfStockItemCount = computed(() => {
+  return availableProducts.value.filter((item: any) => isItemOutOfStock(item)).length
 })
 
 const addToCart = (product: any) => {
@@ -100,7 +128,7 @@ const addToCart = (product: any) => {
       sku: product.displaySku || product.sku,
       price: product.sellingPrice,
       quantity: 1,
-      maxStock: isService ? 999 : (isProduct ? 1 : product.stock),
+      maxStock: isService ? null : (isProduct ? 1 : product.stock),
       isService,
       itemType: product.itemType || 'sparepart'
     })
@@ -156,6 +184,26 @@ const removeFromCart = (index: number) => {
   cart.value.splice(index, 1)
 }
 
+const changeQuantity = (item: any, index: number, change: number) => {
+  const nextQuantity = item.quantity + change
+
+  if (nextQuantity < 1) {
+    removeFromCart(index)
+    return
+  }
+
+  if (item.maxStock !== null && nextQuantity > item.maxStock) {
+    showWarning(`Stok maksimal ${item.maxStock}`)
+    return
+  }
+
+  item.quantity = nextQuantity
+}
+
+const totalCartQuantity = computed(() => {
+  return cart.value.reduce((sum, item) => sum + item.quantity, 0)
+})
+
 const subtotal = computed(() => {
   return cart.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 })
@@ -201,6 +249,7 @@ const processSale = async () => {
     customerName.value = ''
     customerPhone.value = ''
     discount.value = 0
+    await Promise.allSettled([refreshSpareparts(), refreshProducts()])
   } catch (e: any) {
     showError(e.data?.message || 'Transaksi gagal')
   } finally {
@@ -274,22 +323,84 @@ const formatCurrency = (value: number) => {
 
       <!-- Product Grid -->
       <div class="card bg-base-200 border border-base-300 flex-1 overflow-hidden">
-        <div class="card-body p-4">
-          <div class="flex items-center justify-between mb-3">
+        <div class="card-body p-4 min-h-0 overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <span class="font-bold text-sm flex items-center gap-2">
-              <IconPackage class="w-4 h-4" /> Produk & Layanan Tersedia
+              <IconPackage class="w-4 h-4" /> Produk & Layanan
+              <span class="badge badge-ghost badge-sm">{{ catalogItems.length }}</span>
             </span>
-            <span class="text-xs opacity-60">Klik untuk tambah ke keranjang</span>
+            <div class="flex items-center gap-3">
+              <span class="hidden sm:inline text-xs opacity-60">Klik untuk tambah ke keranjang</span>
+              <div class="join" role="group" aria-label="Pilih tampilan produk dan layanan">
+                <button
+                  type="button"
+                  :class="['join-item btn btn-sm btn-square', viewMode === 'grid' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+                  :aria-pressed="viewMode === 'grid'"
+                  title="Tampilan grid"
+                  @click="viewMode = 'grid'"
+                >
+                  <IconLayoutGrid class="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  :class="['join-item btn btn-sm btn-square', viewMode === 'list' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+                  :aria-pressed="viewMode === 'list'"
+                  title="Tampilan list"
+                  @click="viewMode = 'list'"
+                >
+                  <IconList class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 overflow-y-auto">
-            <button 
-              v-for="product in availableProducts" 
-              :key="`${product.itemType}-${product.id}`" 
-              @click="addToCart(product)"
-              class="card bg-base-100 border border-base-300 hover:border-primary hover:shadow-lg transition-all cursor-pointer min-w-[100px]"
+          <div class="flex flex-wrap items-center gap-2 mb-3" role="group" aria-label="Filter ketersediaan stok">
+            <button
+              type="button"
+              :class="['btn btn-sm', stockFilter === 'all' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+              :aria-pressed="stockFilter === 'all'"
+              @click="stockFilter = 'all'"
             >
-              <div class="card-body p-3 items-center text-center">
-                <div class="avatar placeholder mb-1">
+              Semua
+              <span class="badge badge-sm">{{ availableProducts.length }}</span>
+            </button>
+            <button
+              type="button"
+              :class="['btn btn-sm', stockFilter === 'available' ? 'btn-success' : 'btn-ghost bg-base-300']"
+              :aria-pressed="stockFilter === 'available'"
+              @click="stockFilter = 'available'"
+            >
+              Tersedia
+              <span class="badge badge-sm">{{ availableItemCount }}</span>
+            </button>
+            <button
+              type="button"
+              :class="['btn btn-sm', stockFilter === 'out-of-stock' ? 'btn-error' : 'btn-ghost bg-base-300']"
+              :aria-pressed="stockFilter === 'out-of-stock'"
+              @click="stockFilter = 'out-of-stock'"
+            >
+              Stok Habis
+              <span class="badge badge-sm">{{ outOfStockItemCount }}</span>
+            </button>
+          </div>
+          <div :class="[
+            'min-h-0 flex-1 content-start overflow-y-auto pr-1',
+            viewMode === 'grid'
+              ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3'
+              : 'flex flex-col gap-2',
+          ]">
+            <button
+              v-for="product in catalogItems"
+              :key="`${product.itemType}-${product.id}`"
+              @click="addToCart(product)"
+              :disabled="isItemOutOfStock(product)"
+              :class="[
+                'card bg-base-100 border border-base-300 hover:border-primary hover:shadow-md transition-all cursor-pointer',
+                viewMode === 'grid' ? 'min-w-[100px]' : 'w-full',
+                isItemOutOfStock(product) ? 'opacity-60 cursor-not-allowed hover:border-base-300 hover:shadow-none' : '',
+              ]"
+            >
+              <div :class="['card-body p-3', viewMode === 'grid' ? 'items-center text-center' : 'flex-row items-center gap-3 text-left']">
+                <div :class="['avatar placeholder shrink-0', viewMode === 'grid' ? 'mb-1' : '']">
                   <div :class="['rounded w-10 h-10', 
                     product.category === 'SERVICE' ? 'bg-info/10 text-info' : 
                     product.itemType === 'product' ? 'bg-warning/10 text-warning' : 
@@ -298,21 +409,32 @@ const formatCurrency = (value: number) => {
                     <span class="text-xs font-bold">{{ (product.displaySku || product.sku || '').slice(-3) }}</span>
                   </div>
                 </div>
-                <p class="text-xs font-semibold line-clamp-2 min-h-[2rem]">{{ product.name }}</p>
-                <p v-if="product.itemType === 'product' && !product.hasPrice" 
-                   class="text-xs font-bold text-warning flex items-center gap-1">
-                  <IconCurrencyDollar class="w-3 h-3" /> Set Harga
-                </p>
-                <p v-else class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice || 0) }}</p>
-                <p v-if="product.category === 'SERVICE'" class="text-xs text-info flex items-center gap-1">
-                  <IconInfinity class="w-3 h-3" /> Jasa
-                </p>
-                <p v-else-if="product.itemType === 'product'" class="text-xs text-warning flex items-center gap-1">
-                  <IconBox class="w-3 h-3" /> Produk
-                </p>
-                <p v-else class="text-xs opacity-60">Stok: {{ product.stock }}</p>
+                <div class="min-w-0 flex-1">
+                  <p :class="['text-xs font-semibold', viewMode === 'grid' ? 'line-clamp-2 min-h-[2rem]' : 'truncate']">{{ product.name }}</p>
+                  <p class="text-[11px] opacity-50 truncate">{{ product.displaySku || product.sku }}</p>
+                </div>
+                <div :class="['flex flex-col gap-1', viewMode === 'grid' ? 'items-center' : 'items-end shrink-0']">
+                  <p v-if="product.itemType === 'product' && !product.hasPrice"
+                    class="text-xs font-bold text-warning flex items-center gap-1">
+                    <IconCurrencyDollar class="w-3 h-3" /> Set Harga
+                  </p>
+                  <p v-else class="text-xs font-mono font-bold text-primary">{{ formatCurrency(product.sellingPrice || 0) }}</p>
+                  <p v-if="product.category === 'SERVICE'" class="text-xs text-info flex items-center gap-1">
+                    <IconInfinity class="w-3 h-3" /> Jasa
+                  </p>
+                  <p v-else-if="product.itemType === 'product'" class="text-xs text-warning flex items-center gap-1">
+                    <IconBox class="w-3 h-3" /> Produk
+                  </p>
+                  <p v-else :class="['text-xs', product.stock <= 0 ? 'text-error font-medium' : 'opacity-60']">
+                    {{ product.stock <= 0 ? 'Stok habis' : `Stok: ${product.stock}` }}
+                  </p>
+                </div>
               </div>
             </button>
+            <div v-if="catalogItems.length === 0" class="col-span-full flex flex-col items-center justify-center py-10 text-center text-base-content/50">
+              <IconPackage class="w-10 h-10 mb-2 opacity-30" />
+              <p class="text-sm font-medium">Tidak ada item pada filter ini</p>
+            </div>
           </div>
         </div>
       </div>
@@ -323,7 +445,7 @@ const formatCurrency = (value: number) => {
       <div class="card bg-base-200 border border-base-300 h-full flex flex-col">
         <div class="p-4 border-b border-base-300 font-bold flex items-center gap-2">
           <IconShoppingCart class="w-5 h-5" /> Keranjang Belanja
-          <span v-if="cart.length" class="badge badge-primary badge-sm">{{ cart.length }}</span>
+          <span v-if="totalCartQuantity" class="badge badge-primary badge-sm">{{ totalCartQuantity }}</span>
         </div>
         
         <div class="flex-1 overflow-y-auto p-4 space-y-2">
@@ -340,13 +462,20 @@ const formatCurrency = (value: number) => {
               <div class="text-xs opacity-60">{{ item.sku }}</div>
             </div>
             <div class="flex items-center gap-2">
-              <div class="flex items-center gap-1">
-                <button @click="item.quantity > 1 ? item.quantity-- : removeFromCart(index)" class="btn btn-xs btn-square">-</button>
-                <span class="w-6 text-center font-bold text-sm">{{ item.quantity }}</span>
-                <button @click="item.quantity < item.maxStock && item.quantity++" class="btn btn-xs btn-square" :disabled="item.quantity >= item.maxStock">+</button>
-              </div>
-              <div class="text-right w-20">
-                <div class="font-bold text-sm">{{ formatCurrency(item.price * item.quantity) }}</div>
+              <div class="flex flex-col items-end gap-1.5">
+                <div class="flex items-center gap-1">
+                  <button @click="changeQuantity(item, index, -1)" class="btn btn-xs btn-square" :aria-label="`Kurangi jumlah ${item.name}`">-</button>
+                  <span class="w-6 text-center font-bold text-sm">{{ item.quantity }}</span>
+                  <button
+                    @click="changeQuantity(item, index, 1)"
+                    class="btn btn-xs btn-square"
+                    :disabled="item.maxStock !== null && item.quantity >= item.maxStock"
+                    :aria-label="`Tambah jumlah ${item.name}`"
+                  >+</button>
+                </div>
+                <div class="text-right min-w-24 font-bold text-sm leading-tight">
+                  {{ formatCurrency(item.price * item.quantity) }}
+                </div>
               </div>
               <button @click="removeFromCart(index)" class="btn btn-ghost btn-xs text-error">
                 <IconTrash class="w-4 h-4" />
@@ -358,7 +487,7 @@ const formatCurrency = (value: number) => {
         <!-- Cart Footer -->
         <div class="p-4 border-t border-base-300 space-y-3">
           <div class="flex justify-between items-center text-sm">
-            <span>Subtotal ({{ cart.reduce((sum, item) => sum + item.quantity, 0) }} item)</span>
+            <span>Subtotal ({{ totalCartQuantity }} item)</span>
             <span class="font-mono font-bold">{{ formatCurrency(subtotal) }}</span>
           </div>
           <button 

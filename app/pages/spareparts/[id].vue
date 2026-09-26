@@ -234,8 +234,8 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
               <input v-model="editForm.name" type="text" class="input input-bordered bg-base-300" required />
             </div>
             <div class="form-control">
-              <label class="label"><span class="label-text">SKU</span></label>
-              <input v-model="editForm.sku" type="text" class="input input-bordered bg-base-300" required />
+              <label class="label"><span class="label-text">SKU Otomatis</span></label>
+              <input :value="editForm.sku" type="text" class="input input-bordered bg-base-300" disabled />
             </div>
             <div class="form-control">
               <label class="label"><span class="label-text">Brand</span></label>

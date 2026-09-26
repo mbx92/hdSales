@@ -105,6 +105,62 @@
   animation: shimmer 1.5s infinite;
 }
 
+/* Keep long report totals inside their cards on narrow layouts. */
+.report-summary-card,
+.report-summary-card .card-body,
+.report-summary-content {
+  min-width: 0;
+}
+
+.report-summary-card {
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.report-summary-icon {
+  flex-shrink: 0;
+  padding: 0.5rem;
+}
+
+.report-summary-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.report-summary-layout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.report-value {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  font-size: clamp(0.875rem, 6.5cqw, 1.125rem);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-stat-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.report-stat-value {
+  min-width: 0;
+  max-width: 70%;
+  text-align: right;
+  white-space: nowrap;
+  font-size: clamp(0.75rem, 1.2vw, 1rem);
+  font-variant-numeric: tabular-nums;
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% 0;

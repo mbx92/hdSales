@@ -1,6 +1,8 @@
 import prisma from '~/server/utils/prisma'
 import { convertToIdr } from '~/server/utils/currency'
 import { requireUser } from '~/server/utils/requireUser'
+import { createProductSku } from '~/server/utils/inventorySku'
+import { randomUUID } from 'node:crypto'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
@@ -13,21 +15,27 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Create product with userId
-    const product = await prisma.product.create({
-        data: {
-            userId,
-            category: body.category,
-            customCategory: body.customCategory,
-            name: body.name,
-            sku: body.sku,
-            description: body.description,
-            currency: body.currency || 'IDR',
-            status: body.status || 'AVAILABLE',
-            purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : new Date(),
-            supplier: body.supplier,
-            notes: body.notes,
-        },
+    const product = await prisma.$transaction(async (tx) => {
+        const created = await tx.product.create({
+            data: {
+                userId,
+                category: body.category,
+                customCategory: body.customCategory,
+                name: body.name,
+                sku: `TMP-${randomUUID().toUpperCase()}`,
+                description: body.description,
+                currency: body.currency || 'IDR',
+                status: body.status || 'AVAILABLE',
+                purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : new Date(),
+                supplier: body.supplier,
+                notes: body.notes,
+            },
+        })
+
+        return await tx.product.update({
+            where: { id: created.id },
+            data: { sku: createProductSku(created.id) },
+        })
     })
 
     // If there's a purchase cost, add it

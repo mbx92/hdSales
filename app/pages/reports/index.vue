@@ -195,44 +195,44 @@ const handleExportPDF = async () => {
 
         <template v-else-if="report">
             <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-success/20">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-success/20">
                                 <IconArrowUp class="w-6 h-6 text-success" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Total Pemasukan</p>
-                                <p class="text-xl font-bold text-success">{{ formatCurrency(report.summary.totalIncome) }}</p>
+                                <p class="report-value text-lg 2xl:text-xl font-bold text-success">{{ formatCurrency(report.summary.totalIncome) }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-error/20">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-error/20">
                                 <IconArrowDown class="w-6 h-6 text-error" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Total Pengeluaran</p>
-                                <p class="text-xl font-bold text-error">{{ formatCurrency(report.summary.totalOutcome) }}</p>
+                                <p class="report-value text-lg 2xl:text-xl font-bold text-error">{{ formatCurrency(report.summary.totalOutcome) }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div :class="['p-3 rounded-lg', report.summary.netBalance >= 0 ? 'bg-primary/20' : 'bg-warning/20']">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div :class="['report-summary-icon p-3 rounded-lg', report.summary.netBalance >= 0 ? 'bg-primary/20' : 'bg-warning/20']">
                                 <IconScale :class="['w-6 h-6', report.summary.netBalance >= 0 ? 'text-primary' : 'text-warning']" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Saldo Bersih</p>
-                                <p :class="['text-xl font-bold', report.summary.netBalance >= 0 ? 'text-primary' : 'text-warning']">
+                                <p :class="['report-value text-lg 2xl:text-xl font-bold', report.summary.netBalance >= 0 ? 'text-primary' : 'text-warning']">
                                     {{ formatCurrency(report.summary.netBalance) }}
                                 </p>
                             </div>
@@ -240,31 +240,31 @@ const handleExportPDF = async () => {
                     </div>
                 </div>
 
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-info/20">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-info/20">
                                 <IconCalendar class="w-6 h-6 text-info" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Jumlah Transaksi</p>
-                                <p class="text-xl font-bold text-info">{{ report.summary.transactionCount }}</p>
+                                <p class="report-value text-lg 2xl:text-xl font-bold text-info">{{ report.summary.transactionCount }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Net Profit Card -->
-                <div class="card bg-gradient-to-br from-secondary/20 to-primary/20 border border-secondary/30">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div :class="['p-3 rounded-lg', (report.summary.netProfit || 0) >= 0 ? 'bg-success/30' : 'bg-error/30']">
+                <div class="card report-summary-card bg-gradient-to-br from-secondary/20 to-primary/20 border border-secondary/30">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div :class="['report-summary-icon p-3 rounded-lg', (report.summary.netProfit || 0) >= 0 ? 'bg-success/30' : 'bg-error/30']">
                                 <IconTrendingUp v-if="(report.summary.netProfit || 0) >= 0" class="w-6 h-6 text-success" :stroke-width="1.5" />
                                 <IconTrendingDown v-else class="w-6 h-6 text-error" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Net Profit (Margin)</p>
-                                <p :class="['text-xl font-bold', (report.summary.netProfit || 0) >= 0 ? 'text-success' : 'text-error']">
+                                <p :class="['report-value text-lg 2xl:text-xl font-bold', (report.summary.netProfit || 0) >= 0 ? 'text-success' : 'text-error']">
                                     {{ formatCurrency(report.summary.netProfit || 0) }}
                                 </p>
                             </div>

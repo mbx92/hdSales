@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { IconPlus, IconSearch, IconMotorbike } from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconMotorbike, IconLayoutGrid, IconList } from '@tabler/icons-vue'
 
 const route = useRoute()
 
-const status = ref(route.query.status as string || 'AVAILABLE')
+const status = ref((route.query.status as string) || '')
 const search = ref('')
 const page = ref(1)
+const viewMode = useCookie<'grid' | 'list'>('motorcycles-view-mode', {
+  default: () => 'grid',
+  sameSite: 'lax',
+})
 
 const { data, pending, refresh } = await useFetch('/api/motorcycles', {
   query: {
@@ -96,6 +100,28 @@ const toggleStatus = async (motorcycleId: string, event: Event) => {
               {{ opt.label }}
             </option>
           </select>
+          <div class="join self-stretch md:self-auto" role="group" aria-label="Pilih tampilan motor">
+            <button
+              type="button"
+              :class="['join-item btn flex-1 md:flex-none', viewMode === 'grid' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+              :aria-pressed="viewMode === 'grid'"
+              title="Tampilan grid"
+              @click="viewMode = 'grid'"
+            >
+              <IconLayoutGrid class="w-5 h-5" :stroke-width="1.5" />
+              <span class="md:hidden lg:inline">Grid</span>
+            </button>
+            <button
+              type="button"
+              :class="['join-item btn flex-1 md:flex-none', viewMode === 'list' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+              :aria-pressed="viewMode === 'list'"
+              title="Tampilan list"
+              @click="viewMode = 'list'"
+            >
+              <IconList class="w-5 h-5" :stroke-width="1.5" />
+              <span class="md:hidden lg:inline">List</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -105,20 +131,32 @@ const toggleStatus = async (motorcycleId: string, event: Event) => {
       <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
 
-    <!-- Motorcycles Grid -->
-    <div v-else-if="data?.data?.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Motorcycles -->
+    <div
+      v-else-if="data?.data?.length"
+      :class="[
+        'grid gap-6',
+        viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1',
+      ]"
+    >
       <NuxtLink
         v-for="motorcycle in data.data"
         :key="motorcycle.id"
         :to="`/motorcycles/${motorcycle.id}`"
-        class="card bg-base-200 border border-base-300 card-hover"
+        :class="[
+          'card bg-base-200 border border-base-300 card-hover overflow-hidden',
+          viewMode === 'list' ? 'md:card-side' : '',
+        ]"
       >
-        <figure class="px-4 pt-4">
-          <div class="w-full h-48 bg-base-300 rounded-xl flex items-center justify-center">
-            <IconMotorbike class="w-24 h-24 text-base-content/20" :stroke-width="1" />
+        <figure :class="viewMode === 'grid' ? 'px-4 pt-4' : 'px-4 pt-4 md:p-4 md:pr-0 md:w-44 md:shrink-0'">
+          <div :class="[
+            'w-full bg-base-300 rounded-xl flex items-center justify-center',
+            viewMode === 'grid' ? 'h-48' : 'h-32 md:h-full md:min-h-36',
+          ]">
+            <IconMotorbike :class="viewMode === 'grid' ? 'w-24 h-24 text-base-content/20' : 'w-16 h-16 text-base-content/20'" :stroke-width="1" />
           </div>
         </figure>
-        <div class="card-body">
+        <div :class="['card-body', viewMode === 'list' ? 'md:grid md:grid-cols-[minmax(0,1fr)_minmax(15rem,0.75fr)] md:items-center md:gap-x-8' : '']">
           <div class="flex items-start justify-between">
             <div>
               <h2 class="card-title text-lg">
@@ -142,7 +180,7 @@ const toggleStatus = async (motorcycleId: string, event: Event) => {
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-2 mt-3 text-sm">
+          <div :class="['grid grid-cols-2 gap-2 mt-3 text-sm', viewMode === 'list' ? 'md:row-span-2 md:col-start-2 md:row-start-1 md:mt-0' : '']">
             <div>
               <span class="text-base-content/60">VIN</span>
               <p class="font-mono text-xs">{{ motorcycle.vin.slice(-8) }}</p>
@@ -161,9 +199,9 @@ const toggleStatus = async (motorcycleId: string, event: Event) => {
             </div>
           </div>
 
-          <div class="divider my-2"></div>
+          <div :class="['divider my-2', viewMode === 'list' ? 'md:col-start-1' : '']"></div>
 
-          <div class="flex items-center justify-between">
+          <div :class="['flex items-center justify-between', viewMode === 'list' ? 'md:col-start-1' : '']">
             <div>
               <span class="text-xs text-base-content/60">HPP</span>
               <p class="font-bold text-primary">

@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { IconPlus, IconSearch, IconBox, IconReceipt } from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconBox, IconReceipt, IconLayoutGrid, IconList } from '@tabler/icons-vue'
 
-const status = ref('AVAILABLE')
+const status = ref('')
 const category = ref('')
 const search = ref('')
+const viewMode = useCookie<'grid' | 'list'>('products-view-mode', {
+  default: () => 'grid',
+  sameSite: 'lax',
+})
 
 const { data, pending, refresh } = await useFetch('/api/products', {
   query: {
@@ -116,6 +120,28 @@ const toggleStatus = async (productId: string, event: Event) => {
               {{ opt.label }}
             </option>
           </select>
+          <div class="join self-stretch md:self-auto" role="group" aria-label="Pilih tampilan produk">
+            <button
+              type="button"
+              :class="['join-item btn flex-1 md:flex-none', viewMode === 'grid' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+              :aria-pressed="viewMode === 'grid'"
+              title="Tampilan grid"
+              @click="viewMode = 'grid'"
+            >
+              <IconLayoutGrid class="w-5 h-5" :stroke-width="1.5" />
+              <span class="md:hidden lg:inline">Grid</span>
+            </button>
+            <button
+              type="button"
+              :class="['join-item btn flex-1 md:flex-none', viewMode === 'list' ? 'btn-primary' : 'btn-ghost bg-base-300']"
+              :aria-pressed="viewMode === 'list'"
+              title="Tampilan list"
+              @click="viewMode = 'list'"
+            >
+              <IconList class="w-5 h-5" :stroke-width="1.5" />
+              <span class="md:hidden lg:inline">List</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -125,22 +151,40 @@ const toggleStatus = async (productId: string, event: Event) => {
       <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
 
-    <!-- Products Grid -->
-    <div v-else-if="data?.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Products -->
+    <div
+      v-else-if="data?.length"
+      :class="[
+        'grid gap-6',
+        viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1',
+      ]"
+    >
       <div
         v-for="product in data"
         :key="product.id"
-        class="card bg-base-200 border border-base-300"
+        :class="[
+          'card bg-base-200 border border-base-300 overflow-hidden',
+          viewMode === 'list' ? 'md:card-side' : '',
+        ]"
       >
-        <NuxtLink :to="`/products/${product.id}`">
-          <figure class="px-4 pt-4">
-            <div class="w-full h-48 bg-base-300 rounded-xl flex items-center justify-center">
-              <IconBox class="w-24 h-24 text-base-content/20" :stroke-width="1" />
+        <NuxtLink
+          :to="`/products/${product.id}`"
+          :class="viewMode === 'list' ? 'md:w-44 md:shrink-0' : ''"
+        >
+          <figure :class="viewMode === 'grid' ? 'px-4 pt-4' : 'px-4 pt-4 md:p-4 md:pr-0 md:h-full'">
+            <div :class="[
+              'w-full bg-base-300 rounded-xl flex items-center justify-center',
+              viewMode === 'grid' ? 'h-48' : 'h-32 md:h-full md:min-h-36',
+            ]">
+              <IconBox :class="viewMode === 'grid' ? 'w-24 h-24 text-base-content/20' : 'w-16 h-16 text-base-content/20'" :stroke-width="1" />
             </div>
           </figure>
         </NuxtLink>
-        <div class="card-body">
-          <NuxtLink :to="`/products/${product.id}`">
+        <div :class="['card-body', viewMode === 'list' ? 'md:flex-row md:items-center md:gap-6' : '']">
+          <NuxtLink
+            :to="`/products/${product.id}`"
+            :class="viewMode === 'list' ? 'md:flex-1 md:min-w-0' : ''"
+          >
             <div class="flex items-start justify-between gap-2">
               <div class="flex-1">
                 <h2 class="card-title text-lg line-clamp-1">{{ product.name }}</h2>
@@ -165,7 +209,7 @@ const toggleStatus = async (productId: string, event: Event) => {
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 mt-3 text-sm">
+            <div :class="['grid gap-2 mt-3 text-sm', viewMode === 'list' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2']">
               <div>
                 <span class="text-base-content/60">Supplier</span>
                 <p class="truncate">{{ product.supplier || '-' }}</p>
@@ -195,7 +239,10 @@ const toggleStatus = async (productId: string, event: Event) => {
           </NuxtLink>
 
           <!-- Receipt Button for Sold Products -->
-          <div v-if="product.status === 'SOLD' && product.saleTransaction" class="mt-3 pt-3 border-t border-base-300">
+          <div
+            v-if="product.status === 'SOLD' && product.saleTransaction"
+            :class="viewMode === 'list' ? 'mt-3 pt-3 border-t border-base-300 md:mt-0 md:pt-0 md:pl-6 md:border-t-0 md:border-l md:shrink-0' : 'mt-3 pt-3 border-t border-base-300'"
+          >
             <NuxtLink
               :to="`/sales/product-receipt/${product.saleTransaction.id}`"
               class="btn btn-primary btn-sm btn-block gap-1"

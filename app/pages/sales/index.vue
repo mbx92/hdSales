@@ -118,6 +118,11 @@ const sparepartSales = computed(() => {
   return (sparepartData.value?.data || []) as any[]
 })
 
+const pageTotalSparepartItems = computed(() => {
+  if (activeTab.value !== 'sparepart') return 0
+  return sparepartSales.value.reduce((sum: number, sale: any) => sum + (sale.itemQuantity || 0), 0)
+})
+
 // Print modal for sparepart
 const showPrintModal = ref(false)
 const selectedSaleId = ref('')
@@ -265,7 +270,7 @@ const confirmDelete = async () => {
       <div v-else-if="activeTab === 'sparepart'" class="card bg-base-200 border border-base-300">
         <div class="card-body p-4">
           <h3 class="text-sm font-medium text-base-content/60">Jumlah Item Terjual</h3>
-          <p class="text-2xl font-bold text-info">{{ sparepartSales.reduce((sum, s) => sum + (s.items?.length || 0), 0) }}</p>
+          <p class="text-2xl font-bold text-info">{{ pageTotalSparepartItems }}</p>
         </div>
       </div>
       <div v-else class="card bg-base-200 border border-base-300">
@@ -415,7 +420,7 @@ const confirmDelete = async () => {
                   <p class="text-xs text-base-content/60">{{ sale.customerPhone || '-' }}</p>
                 </td>
                 <td>
-                  <span class="badge badge-sm badge-info">{{ sale.items?.length || 0 }} item</span>
+                  <span class="badge badge-sm badge-info">{{ sale.itemQuantity || 0 }} item</span>
                 </td>
                 <td>
                   <span class="badge badge-sm badge-outline">{{ sale.paymentMethod }}</span>
@@ -552,4 +557,3 @@ const confirmDelete = async () => {
     </dialog>
   </div>
 </template>
-

@@ -107,71 +107,71 @@ const handleExportPDF = async () => {
 
         <template v-else-if="report">
             <!-- Summary Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-primary/20">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-primary/20">
                                 <IconBuildingWarehouse class="w-6 h-6 text-primary" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Total Aset</p>
-                                <p class="text-2xl font-bold">{{ report.summary.totalAssets }}</p>
+                                <p class="report-value text-xl 2xl:text-2xl font-bold">{{ report.summary.totalAssets }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-success/20">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-success/20">
                                 <IconCurrencyDollar class="w-6 h-6 text-success" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Total Nilai HPP</p>
-                                <p class="text-xl font-bold text-success">{{ formatCurrency(report.summary.totalValue) }}</p>
+                                <p class="report-value text-lg 2xl:text-xl font-bold text-success">{{ formatCurrency(report.summary.totalValue) }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-info/20">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-info/20">
                                 <IconMotorbike class="w-6 h-6 text-info" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Motor</p>
-                                <p class="text-xl font-bold">{{ report.summary.motorcycle.count }}</p>
-                                <p class="text-xs text-base-content/40">{{ formatCurrency(report.summary.motorcycle.totalValue) }}</p>
+                                <p class="report-value text-xl font-bold">{{ report.summary.motorcycle.count }}</p>
+                                <p class="report-value text-xs text-base-content/40">{{ formatCurrency(report.summary.motorcycle.totalValue) }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-secondary/20">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-secondary/20">
                                 <IconBox class="w-6 h-6 text-secondary" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Product</p>
-                                <p class="text-xl font-bold">{{ report.summary.product.count }}</p>
-                                <p class="text-xs text-base-content/40">{{ formatCurrency(report.summary.product.totalValue) }}</p>
+                                <p class="report-value text-xl font-bold">{{ report.summary.product.count }}</p>
+                                <p class="report-value text-xs text-base-content/40">{{ formatCurrency(report.summary.product.totalValue) }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="card bg-base-200 border border-base-300">
-                    <div class="card-body py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-3 rounded-lg bg-info/20">
+                <div class="card report-summary-card bg-base-200 border border-base-300">
+                    <div class="card-body p-4">
+                        <div class="report-summary-layout">
+                            <div class="report-summary-icon p-3 rounded-lg bg-info/20">
                                 <IconPackage class="w-6 h-6 text-info" :stroke-width="1.5" />
                             </div>
-                            <div>
+                            <div class="report-summary-content">
                                 <p class="text-xs text-base-content/60">Sparepart</p>
-                                <p class="text-xl font-bold">{{ report.summary.sparepart?.count || 0 }}</p>
-                                <p class="text-xs text-base-content/40">{{ formatCurrency(report.summary.sparepart?.totalValue || 0) }}</p>
+                                <p class="report-value text-xl font-bold">{{ report.summary.sparepart?.count || 0 }}</p>
+                                <p class="report-value text-xs text-base-content/40">{{ formatCurrency(report.summary.sparepart?.totalValue || 0) }}</p>
                             </div>
                         </div>
                     </div>

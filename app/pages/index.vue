@@ -237,7 +237,7 @@ const kpiCards = computed(() => [
                 <tr v-for="item in charts?.profitByMotorcycle" :key="item.label">
                   <td>{{ item.label }}</td>
                   <td :class="['text-right', item.profit >= 0 ? 'text-success' : 'text-error']">
-                    {{ formatCurrency(item.profit, 'USD') }}
+                    {{ formatCurrency(item.profit) }}
                   </td>
                   <td class="text-right">{{ item.margin?.toFixed(1) }}%</td>
                 </tr>

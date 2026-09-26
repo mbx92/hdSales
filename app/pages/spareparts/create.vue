@@ -9,7 +9,6 @@ const { data: suppliers } = await useFetch('/api/suppliers')
 
 const loading = ref(false)
 const form = ref({
-  sku: '',
   name: '',
   brand: '',
   category: 'SPAREPART',
@@ -69,8 +68,11 @@ const handleSubmit = async () => {
           <h3 class="font-bold border-b border-base-300 pb-2 mb-4">Informasi Produk</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-control">
-              <label class="label"><span class="label-text">SKU (Kode Barang) *</span></label>
-              <input v-model="form.sku" type="text" class="input input-bordered bg-base-300" required placeholder="Contoh: SP-001" />
+              <label class="label"><span class="label-text">SKU (Kode Barang)</span></label>
+              <input value="Dibuat otomatis setelah disimpan" type="text" class="input input-bordered bg-base-300" disabled />
+              <label class="label py-1">
+                <span class="label-text-alt text-base-content/50">Prefix mengikuti kategori produk</span>
+              </label>
             </div>
             <div class="form-control">
               <label class="label"><span class="label-text">Kategori *</span></label>

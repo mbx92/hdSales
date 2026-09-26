@@ -44,8 +44,20 @@ export default defineEventHandler(async (event) => {
         prisma.sparepartSale.count({ where })
     ])
 
+    const salesWithQuantity = sales.map(sale => {
+        const productQuantity = sale.notes?.startsWith('PRODUCTS:')
+            ? sale.notes.replace('PRODUCTS:', '').split(',').filter(Boolean).length
+            : 0
+        const sparepartQuantity = sale.items.reduce((sum, item) => sum + item.quantity, 0)
+
+        return {
+            ...sale,
+            itemQuantity: sparepartQuantity + productQuantity,
+        }
+    })
+
     return {
-        data: sales,
+        data: salesWithQuantity,
         meta: {
             total,
             page,

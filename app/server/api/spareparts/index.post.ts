@@ -1,45 +1,42 @@
 import prisma from '../../utils/prisma'
 import { requireUser } from '../../utils/requireUser'
+import { createSparepartSku } from '../../utils/inventorySku'
+import { randomUUID } from 'node:crypto'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
     const body = await readBody(event)
 
-    if (!body.sku || !body.name) {
+    if (!body.name) {
         throw createError({
             statusCode: 400,
-            message: 'SKU dan Nama wajib diisi'
+            message: 'Nama wajib diisi'
         })
     }
 
-    // Check SKU duplicate for this user
-    const existing = await prisma.sparepart.findFirst({
-        where: { userId, sku: body.sku }
-    })
-
-    if (existing) {
-        throw createError({
-            statusCode: 400,
-            message: 'SKU sudah digunakan'
+    const sparepart = await prisma.$transaction(async (tx) => {
+        const created = await tx.sparepart.create({
+            data: {
+                userId,
+                sku: `TMP-${randomUUID().toUpperCase()}`,
+                name: body.name.trim(),
+                category: body.category,
+                brand: body.brand,
+                description: body.description,
+                purchasePrice: parseFloat(body.purchasePrice),
+                sellingPrice: parseFloat(body.sellingPrice),
+                currency: body.currency || 'IDR',
+                stock: parseInt(body.stock || 0),
+                minStock: parseInt(body.minStock || 1),
+                supplierId: body.supplierId || undefined,
+                status: body.status || 'ACTIVE',
+            }
         })
-    }
 
-    const sparepart = await prisma.sparepart.create({
-        data: {
-            userId,
-            sku: body.sku,
-            name: body.name,
-            category: body.category,
-            brand: body.brand,
-            description: body.description,
-            purchasePrice: parseFloat(body.purchasePrice),
-            sellingPrice: parseFloat(body.sellingPrice),
-            currency: body.currency || 'IDR',
-            stock: parseInt(body.stock || 0),
-            minStock: parseInt(body.minStock || 1),
-            supplierId: body.supplierId || undefined,
-            status: body.status || 'ACTIVE',
-        }
+        return await tx.sparepart.update({
+            where: { id: created.id },
+            data: { sku: createSparepartSku(created.category, created.id) },
+        })
     })
 
     return sparepart

@@ -5,10 +5,35 @@ import { requireUser } from '../../utils/requireUser'
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
     const body = await readBody(event)
-    const items = body.items as Array<{ id: string; quantity: number; price: number; itemType?: string }>
+    const rawItems = body.items as Array<{ id: string; quantity: number; price: number; itemType?: string }>
 
-    if (!items || items.length === 0) {
+    if (!Array.isArray(rawItems) || rawItems.length === 0) {
         throw createError({ statusCode: 400, message: 'Keranjang belanja kosong' })
+    }
+
+    const items = rawItems.map(item => ({
+        ...item,
+        quantity: Number(item.quantity),
+        price: Number(item.price),
+    }))
+
+    const itemKeys = new Set<string>()
+    for (const item of items) {
+        if (!item.id || !Number.isInteger(item.quantity) || item.quantity < 1) {
+            throw createError({ statusCode: 400, message: 'Qty item harus berupa bilangan bulat minimal 1' })
+        }
+        if (!Number.isFinite(item.price) || item.price <= 0) {
+            throw createError({ statusCode: 400, message: 'Harga item tidak valid' })
+        }
+        if (item.itemType === 'product' && item.quantity !== 1) {
+            throw createError({ statusCode: 400, message: 'Produk hanya dapat dijual sebanyak 1 unit' })
+        }
+
+        const itemKey = `${item.itemType || 'sparepart'}:${item.id}`
+        if (itemKeys.has(itemKey)) {
+            throw createError({ statusCode: 400, message: 'Item yang sama tidak boleh dikirim lebih dari sekali' })
+        }
+        itemKeys.add(itemKey)
     }
 
     return await prisma.$transaction(async (tx) => {

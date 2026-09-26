@@ -19,12 +19,14 @@ interface Sparepart {
 const search = ref('')
 const debouncedSearch = refDebounced(search, 300)
 const category = ref('ALL')
-const status = ref('ACTIVE')
+const status = ref('ALL')
 const { showSuccess, showError } = useAlert()
 
 // Pagination
 const currentPage = ref(1)
-const itemsPerPage = 10
+// Keep the active inventory visible without forcing users to search for items
+// that are merely beyond the first short page.
+const itemsPerPage = 50
 
 const { data: spareparts, pending, refresh } = await useFetch<Sparepart[]>('/api/spareparts', {
   query: { 
@@ -76,12 +78,27 @@ const openAdjustModal = (item: Sparepart) => {
 }
 
 const submitAdjustment = async () => {
-  if (!adjustItem.value || adjustForm.value.quantity === 0) return
+  if (!adjustItem.value) return
+
+  const quantity = Math.abs(Number(adjustForm.value.quantity))
+  const isReduction = ['ADJUSTMENT', 'LOSS'].includes(adjustForm.value.type)
+
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return showError('Jumlah harus berupa bilangan bulat minimal 1')
+  }
+
+  if (isReduction && quantity > adjustItem.value.stock) {
+    return showError(`Jumlah pengurangan melebihi stok saat ini (${adjustItem.value.stock})`)
+  }
+
   adjusting.value = true
   try {
     await $fetch(`/api/spareparts/${adjustItem.value.id}/stock-adjustment`, {
       method: 'POST',
-      body: adjustForm.value
+      body: {
+        ...adjustForm.value,
+        quantity,
+      }
     })
     showSuccess('Stok berhasil disesuaikan')
     showAdjustModal.value = false
@@ -329,10 +346,16 @@ const toggleStatus = async (item: Sparepart) => {
               v-model.number="adjustForm.quantity"
               type="number"
               class="input input-bordered bg-base-300"
-              :placeholder="adjustForm.type === 'PURCHASE' || adjustForm.type === 'RETURN' ? 'Masukkan jumlah (+)' : 'Masukkan jumlah (-)'"
+              min="1"
+              step="1"
+              placeholder="Masukkan jumlah unit"
             />
             <label class="label" v-if="adjustItem.purchasePrice">
-              <span class="label-text-alt">Total: {{ formatCurrency(Math.abs(adjustForm.quantity) * adjustItem.purchasePrice) }}</span>
+              <span class="label-text-alt">
+                {{ adjustForm.type === 'PURCHASE' || adjustForm.type === 'RETURN' ? 'Stok bertambah' : 'Stok berkurang' }}
+                {{ Math.abs(adjustForm.quantity) || 0 }} unit
+                • Total: {{ formatCurrency(Math.abs(adjustForm.quantity) * adjustItem.purchasePrice) }}
+              </span>
             </label>
           </div>
           
@@ -343,7 +366,7 @@ const toggleStatus = async (item: Sparepart) => {
         </div>
         <div class="modal-action">
           <button @click="showAdjustModal = false" class="btn btn-ghost">Batal</button>
-          <button @click="submitAdjustment" class="btn btn-primary" :disabled="adjusting || adjustForm.quantity === 0">
+          <button @click="submitAdjustment" class="btn btn-primary" :disabled="adjusting || !adjustForm.quantity">
             <span v-if="adjusting" class="loading loading-spinner loading-sm"></span>
             Simpan
           </button>
