@@ -71,10 +71,19 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        const discount = body.discount || 0
+        const subtotal = sparepartSubtotal + productSubtotal
+        const discount = Number(body.discount || 0)
+
+        if (!Number.isFinite(discount) || discount < 0) {
+            throw createError({ statusCode: 400, message: 'Diskon tidak valid' })
+        }
+        if (discount > subtotal) {
+            throw createError({ statusCode: 400, message: 'Diskon tidak boleh melebihi subtotal' })
+        }
+
         // Apply discount proportionally or to sparepart total
         const sparepartDiscount = productItems.length > 0
-            ? Math.round(discount * (sparepartSubtotal / (sparepartSubtotal + productSubtotal)))
+            ? Math.round(discount * (sparepartSubtotal / subtotal))
             : discount
         const productDiscount = discount - sparepartDiscount
 
@@ -182,7 +191,7 @@ export default defineEventHandler(async (event) => {
                 customerName: body.customerName,
                 customerPhone: body.customerPhone,
                 paymentMethod: body.paymentMethod || 'CASH',
-                subtotal: sparepartSubtotal + productSubtotal, // For display purposes
+                subtotal, // For display purposes
                 discount,
                 total: grandTotal,
                 paidAmount: grandTotal,

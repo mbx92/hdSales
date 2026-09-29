@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar, IconLayoutGrid, IconList } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar, IconLayoutGrid, IconList, IconCash, IconBuildingBank, IconCreditCard, IconQrcode } from '@tabler/icons-vue'
 
 const { showError, showWarning } = useAlert()
 const viewMode = useCookie<'grid' | 'list'>('pos-products-view-mode', {
@@ -44,7 +44,14 @@ const cart = ref<any[]>([])
 const customerName = ref('')
 const customerPhone = ref('')
 const paymentMethod = ref('CASH')
-const discount = ref(0)
+const paymentMethods = [
+  { value: 'CASH', label: 'Cash', icon: IconCash },
+  { value: 'TRANSFER', label: 'Transfer', icon: IconBuildingBank },
+  { value: 'CARD', label: 'Kartu', icon: IconCreditCard },
+  { value: 'QRIS', label: 'QRIS', icon: IconQrcode },
+]
+const discountMode = ref<'NOMINAL' | 'PERCENTAGE'>('NOMINAL')
+const discountValue = ref<string | number>('')
 const loading = ref(false)
 const showSuccessModal = ref(false)
 const showCheckoutModal = ref(false)
@@ -207,9 +214,42 @@ const subtotal = computed(() => {
   return cart.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 })
 
-const total = computed(() => {
-  return Math.max(0, subtotal.value - discount.value)
+const parsedDiscountValue = computed(() => Number(discountValue.value) || 0)
+
+const discountAmount = computed(() => {
+  if (discountMode.value === 'PERCENTAGE') {
+    return Math.round(subtotal.value * parsedDiscountValue.value / 100)
+  }
+
+  return Math.round(parsedDiscountValue.value)
 })
+
+const discountPercentage = computed(() => {
+  if (subtotal.value <= 0) return 0
+  return discountMode.value === 'PERCENTAGE'
+    ? parsedDiscountValue.value
+    : (discountAmount.value / subtotal.value) * 100
+})
+
+const discountError = computed(() => {
+  if (parsedDiscountValue.value < 0) return 'Diskon tidak boleh kurang dari 0'
+  if (discountMode.value === 'PERCENTAGE' && parsedDiscountValue.value > 100) {
+    return 'Persentase diskon maksimal 100%'
+  }
+  if (discountMode.value === 'NOMINAL' && discountAmount.value > subtotal.value) {
+    return 'Nominal diskon tidak boleh melebihi subtotal'
+  }
+  return ''
+})
+
+const total = computed(() => {
+  return Math.max(0, subtotal.value - discountAmount.value)
+})
+
+const setDiscountMode = (mode: 'NOMINAL' | 'PERCENTAGE') => {
+  discountMode.value = mode
+  discountValue.value = ''
+}
 
 const openCheckout = () => {
   if (cart.value.length === 0) return showWarning('Keranjang kosong!')
@@ -219,6 +259,7 @@ const openCheckout = () => {
 const processSale = async () => {
   if (cart.value.length === 0) return
   if (!customerName.value) return showWarning('Nama pembeli wajib diisi')
+  if (discountError.value) return showWarning(discountError.value)
   
   loading.value = true
   try {
@@ -234,7 +275,7 @@ const processSale = async () => {
         customerName: customerName.value,
         customerPhone: customerPhone.value,
         paymentMethod: paymentMethod.value,
-        discount: discount.value
+        discount: discountAmount.value
       }
     })
     
@@ -247,7 +288,8 @@ const processSale = async () => {
     cart.value = []
     customerName.value = ''
     customerPhone.value = ''
-    discount.value = 0
+    discountMode.value = 'NOMINAL'
+    discountValue.value = ''
     await Promise.allSettled([refreshSpareparts(), refreshProducts()])
   } catch (e: any) {
     showError(e.data?.message || 'Transaksi gagal')
@@ -518,18 +560,79 @@ const formatCurrency = (value: number) => {
           </div>
           
           <div class="form-control">
-            <label class="label py-1"><span class="label-text">Diskon</span></label>
-            <input v-model="discount" type="number" class="input input-bordered input-sm" min="0" />
+            <label class="label py-1">
+              <span class="label-text">Diskon</span>
+              <span v-if="discountAmount > 0" class="label-text-alt text-primary">
+                {{ formatCurrency(discountAmount) }} ({{ discountPercentage.toFixed(2) }}%)
+              </span>
+            </label>
+
+            <div class="join mb-2 w-full" role="group" aria-label="Pilih jenis diskon">
+              <button
+                type="button"
+                :class="['join-item btn btn-sm flex-1', discountMode === 'NOMINAL' ? 'btn-primary' : 'btn-ghost bg-base-200']"
+                :aria-pressed="discountMode === 'NOMINAL'"
+                @click="setDiscountMode('NOMINAL')"
+              >
+                Nominal (Rp)
+              </button>
+              <button
+                type="button"
+                :class="['join-item btn btn-sm flex-1', discountMode === 'PERCENTAGE' ? 'btn-primary' : 'btn-ghost bg-base-200']"
+                :aria-pressed="discountMode === 'PERCENTAGE'"
+                @click="setDiscountMode('PERCENTAGE')"
+              >
+                Persentase (%)
+              </button>
+            </div>
+
+            <ThousandsInput
+              v-if="discountMode === 'NOMINAL'"
+              v-model="discountValue"
+              class="input input-bordered input-sm w-full font-mono"
+              placeholder="0"
+              aria-label="Nominal diskon"
+            />
+            <div v-else class="relative">
+              <input
+                v-model="discountValue"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                max="100"
+                step="0.01"
+                class="input input-bordered input-sm w-full pr-9 font-mono"
+                placeholder="0"
+                aria-label="Persentase diskon"
+              />
+              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-base-content/60">%</span>
+            </div>
+            <label v-if="discountError" class="label py-1">
+              <span class="label-text-alt text-error">{{ discountError }}</span>
+            </label>
           </div>
           
           <div class="form-control">
             <label class="label py-1"><span class="label-text">Metode Bayar</span></label>
-            <select v-model="paymentMethod" class="select select-bordered select-sm">
-              <option value="CASH">Cash</option>
-              <option value="TRANSFER">Transfer</option>
-              <option value="CARD">Kartu Debit/Kredit</option>
-              <option value="QRIS">QRIS</option>
-            </select>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Metode pembayaran">
+              <button
+                v-for="method in paymentMethods"
+                :key="method.value"
+                type="button"
+                role="radio"
+                :aria-checked="paymentMethod === method.value"
+                :class="[
+                  'btn h-auto min-h-16 flex-col gap-1 px-2 py-2',
+                  paymentMethod === method.value
+                    ? 'btn-primary shadow-md'
+                    : 'btn-ghost border border-base-300 bg-base-200',
+                ]"
+                @click="paymentMethod = method.value"
+              >
+                <component :is="method.icon" class="h-5 w-5" :stroke-width="1.8" />
+                <span class="text-xs">{{ method.label }}</span>
+              </button>
+            </div>
           </div>
           
           <div class="divider my-2"></div>
@@ -545,7 +648,7 @@ const formatCurrency = (value: number) => {
           <button 
             @click="processSale" 
             class="btn btn-primary"
-            :disabled="loading || !customerName"
+            :disabled="loading || !customerName || !!discountError"
           >
             <span v-if="loading" class="loading loading-spinner"></span>
             <template v-else>
