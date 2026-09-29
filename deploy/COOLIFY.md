@@ -20,6 +20,10 @@ yang sudah tersedia di Coolify.
 - `APP_PORT` — opsional, default `3018`; merupakan port host yang diteruskan ke
   port aplikasi `3000`.
 
+`NODE_ENV` tidak perlu dibuat sebagai build-time variable di Coolify. Dockerfile
+memakai mode development hanya saat memasang build dependencies, kemudian image
+akhir tetap berjalan dengan `NODE_ENV=production`.
+
 ## Konfigurasi Coolify
 
 1. Buat resource baru dari repository dan pilih Docker Compose.

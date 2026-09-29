@@ -10,8 +10,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS dependencies
+ENV NODE_ENV=development
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 FROM dependencies AS builder
 ARG BUILD_NODE_OPTIONS=--max-old-space-size=512
