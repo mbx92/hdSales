@@ -1,6 +1,9 @@
 -- Complete the per-owner data model that predates the migration history.
--- Every statement is safe to run against databases where these columns were
--- previously added manually.
+-- This migration never updates, deletes, or replaces existing business data.
+-- Existing rows must already have a valid userId before NOT NULL constraints
+-- and foreign keys are installed.
+
+BEGIN;
 
 ALTER TABLE "motorcycles" ADD COLUMN IF NOT EXISTS "userId" TEXT;
 ALTER TABLE "cash_flows" ADD COLUMN IF NOT EXISTS "userId" TEXT;
@@ -14,41 +17,35 @@ ALTER TABLE "suppliers" ADD COLUMN IF NOT EXISTS "userId" TEXT;
 
 DO $$
 DECLARE
-    owner_id TEXT;
-    rows_need_owner BOOLEAN;
+    null_details TEXT;
 BEGIN
-    SELECT "id" INTO owner_id
-    FROM "users"
-    WHERE "role" = 'OWNER'
-    ORDER BY "createdAt" ASC
-    LIMIT 1;
+    SELECT string_agg(table_name || '=' || null_count, ', ' ORDER BY table_name)
+    INTO null_details
+    FROM (
+        SELECT 'motorcycles' AS table_name, count(*)::TEXT AS null_count FROM "motorcycles" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'cash_flows', count(*)::TEXT FROM "cash_flows" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'exchange_rates', count(*)::TEXT FROM "exchange_rates" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'expenses', count(*)::TEXT FROM "expenses" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'invoice_counters', count(*)::TEXT FROM "invoice_counters" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'products', count(*)::TEXT FROM "products" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'sparepart_sales', count(*)::TEXT FROM "sparepart_sales" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'spareparts', count(*)::TEXT FROM "spareparts" WHERE "userId" IS NULL
+        UNION ALL
+        SELECT 'suppliers', count(*)::TEXT FROM "suppliers" WHERE "userId" IS NULL
+    ) null_rows
+    WHERE null_count <> '0';
 
-    SELECT
-        EXISTS (SELECT 1 FROM "motorcycles" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "cash_flows" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "exchange_rates" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "expenses" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "invoice_counters" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "products" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "sparepart_sales" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "spareparts" WHERE "userId" IS NULL) OR
-        EXISTS (SELECT 1 FROM "suppliers" WHERE "userId" IS NULL)
-    INTO rows_need_owner;
-
-    IF rows_need_owner AND owner_id IS NULL THEN
-        RAISE EXCEPTION 'Cannot assign existing data: no OWNER user exists';
-    END IF;
-
-    IF owner_id IS NOT NULL THEN
-        UPDATE "motorcycles" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "cash_flows" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "exchange_rates" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "expenses" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "invoice_counters" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "products" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "sparepart_sales" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "spareparts" SET "userId" = owner_id WHERE "userId" IS NULL;
-        UPDATE "suppliers" SET "userId" = owner_id WHERE "userId" IS NULL;
+    IF null_details IS NOT NULL THEN
+        RAISE EXCEPTION
+            'Migration stopped without changing existing data. Fill userId manually for: %',
+            null_details;
     END IF;
 END $$;
 
@@ -61,13 +58,6 @@ ALTER TABLE "products" ALTER COLUMN "userId" SET NOT NULL;
 ALTER TABLE "sparepart_sales" ALTER COLUMN "userId" SET NOT NULL;
 ALTER TABLE "spareparts" ALTER COLUMN "userId" SET NOT NULL;
 ALTER TABLE "suppliers" ALTER COLUMN "userId" SET NOT NULL;
-
-DROP INDEX IF EXISTS "exchange_rates_fromCurrency_toCurrency_effectiveDate_key";
-DROP INDEX IF EXISTS "invoice_counters_prefix_year_month_key";
-DROP INDEX IF EXISTS "motorcycles_vin_idx";
-DROP INDEX IF EXISTS "motorcycles_vin_key";
-DROP INDEX IF EXISTS "products_sku_key";
-DROP INDEX IF EXISTS "spareparts_sku_key";
 
 CREATE INDEX IF NOT EXISTS "motorcycles_userId_idx" ON "motorcycles"("userId");
 CREATE UNIQUE INDEX IF NOT EXISTS "motorcycles_userId_vin_key" ON "motorcycles"("userId", "vin");
@@ -121,3 +111,5 @@ BEGIN
             FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
     END IF;
 END $$;
+
+COMMIT;
