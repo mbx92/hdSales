@@ -15,6 +15,10 @@ const form = ref({
 const loading = ref(false)
 const error = ref('')
 
+const getDefaultRoute = () => {
+  return ['ADMIN', 'CASHIER'].includes(authStore.user?.role || '') ? '/pos' : '/'
+}
+
 const handleLogin = async () => {
   loading.value = true
   error.value = ''
@@ -22,7 +26,7 @@ const handleLogin = async () => {
   const result = await authStore.login(form.value.email, form.value.password)
 
   if (result.success) {
-    navigateTo('/')
+    navigateTo(getDefaultRoute())
   } else {
     error.value = result.message || 'Login gagal'
   }
@@ -34,7 +38,7 @@ const handleLogin = async () => {
 onMounted(async () => {
   const isAuth = await authStore.checkAuth()
   if (isAuth) {
-    navigateTo('/')
+    navigateTo(getDefaultRoute())
   }
 })
 </script>

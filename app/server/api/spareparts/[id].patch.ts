@@ -1,11 +1,13 @@
 import prisma from '../../utils/prisma'
 import { requireUser } from '../../utils/requireUser'
 import { createSparepartSku, isMeaningfulSku } from '../../utils/inventorySku'
+import { getUserFromEvent } from '../../utils/jwt'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
     const id = event.context.params?.id
     const body = await readBody(event)
+    const currentUser = getUserFromEvent(event)
 
     // Verify sparepart belongs to user
     const existing = await prisma.sparepart.findFirst({
@@ -16,6 +18,17 @@ export default defineEventHandler(async (event) => {
         throw createError({
             statusCode: 404,
             message: 'Sparepart tidak ditemukan'
+        })
+    }
+
+    if (
+        currentUser?.role === 'CASHIER' &&
+        body.stock !== undefined &&
+        parseInt(body.stock) !== existing.stock
+    ) {
+        throw createError({
+            statusCode: 403,
+            message: 'Kasir harus menggunakan Penyesuaian Stok untuk menambah stok',
         })
     }
 

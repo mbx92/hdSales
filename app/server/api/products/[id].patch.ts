@@ -1,11 +1,13 @@
 import prisma from '~/server/utils/prisma'
 import { requireUser } from '~/server/utils/requireUser'
 import { createProductSku, isMeaningfulSku } from '~/server/utils/inventorySku'
+import { getUserFromEvent } from '~/server/utils/jwt'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
+    const currentUser = getUserFromEvent(event)
 
     if (!id) {
         throw createError({
@@ -23,6 +25,16 @@ export default defineEventHandler(async (event) => {
             statusCode: 404,
             message: 'Produk tidak ditemukan',
         })
+    }
+
+    if (currentUser?.role === 'CASHIER') {
+        const submittedFields = Object.keys(body)
+        if (submittedFields.some(field => field !== 'sellingPrice')) {
+            throw createError({
+                statusCode: 403,
+                message: 'Kasir hanya dapat menentukan harga jual produk melalui POS',
+            })
+        }
     }
 
     if (product.status === 'SOLD') {

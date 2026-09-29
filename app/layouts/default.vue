@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconHome, IconMotorbike, IconCash, IconChartBar, IconCurrencyDollar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconSettings, IconWallet, IconUsers } from '@tabler/icons-vue'
+import { IconHome, IconMotorbike, IconCash, IconChartBar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconWallet, IconUsers, IconShoppingCart } from '@tabler/icons-vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -7,6 +7,7 @@ const { alertState, closeAlert } = useAlert()
 
 const baseMenuItems = [
   { path: '/', label: 'Dashboard', icon: IconHome },
+  { path: '/pos', label: 'Kasir / POS', icon: IconShoppingCart },
   { path: '/motorcycles', label: 'Motor', icon: IconMotorbike },
   { path: '/products', label: 'Products', icon: IconBox },
   { path: '/spareparts', label: 'Services & Spareparts', icon: IconPackage },
@@ -18,6 +19,12 @@ const baseMenuItems = [
 ]
 
 const menuItems = computed(() => {
+  if (authStore.user?.role === 'CASHIER') {
+    return baseMenuItems.filter(item =>
+      ['/pos', '/spareparts', '/settings/suppliers'].includes(item.path)
+    )
+  }
+
   const items = [...baseMenuItems]
   // Add Users menu only for OWNER
   if (authStore.user?.role === 'OWNER') {

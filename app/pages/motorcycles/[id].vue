@@ -14,6 +14,7 @@ const showEditCostModal = ref(false)
 const showSellModal = ref(false)
 const loading = ref(false)
 const editingCost = ref<any>(null)
+const sellingPricePercentage = ref('')
 
 const costForm = ref({
   component: 'SERVICE',
@@ -69,6 +70,23 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
     style: 'currency',
     currency: 'USD',
   }).format(value)
+}
+
+const sellingPriceValue = computed(() => Number(sellForm.value.sellingPrice) || 0)
+const estimatedProfit = computed(() => sellingPriceValue.value - (motorcycle.value?.totalCost || 0))
+const estimatedProfitMargin = computed(() => {
+  if (sellingPriceValue.value <= 0) return 0
+
+  return (estimatedProfit.value / sellingPriceValue.value) * 100
+})
+
+const updateSellingPriceFromPercentage = () => {
+  const percentage = Number(sellingPricePercentage.value)
+  const hpp = motorcycle.value?.totalCost || 0
+
+  if (!sellingPricePercentage.value || percentage < 0 || !hpp) return
+
+  sellForm.value.sellingPrice = Math.round(hpp * (percentage / 100)).toString()
 }
 
 const getStatusBadge = (status: string) => {
@@ -483,7 +501,7 @@ const deleteCost = async (costId: string) => {
             <div class="grid grid-cols-2 gap-4">
               <div class="form-control">
                 <label class="label"><span class="label-text">Jumlah *</span></label>
-                <input v-model="costForm.amount" type="number" step="0.01" class="input input-bordered bg-base-300" required />
+                <ThousandsInput v-model="costForm.amount" class="input input-bordered bg-base-300" required />
               </div>
               <div class="form-control">
                 <label class="label"><span class="label-text">Currency</span></label>
@@ -536,7 +554,7 @@ const deleteCost = async (costId: string) => {
             <div class="grid grid-cols-2 gap-4">
               <div class="form-control">
                 <label class="label"><span class="label-text">Jumlah *</span></label>
-                <input v-model="editCostForm.amount" type="number" step="0.01" class="input input-bordered bg-base-300" required />
+                <ThousandsInput v-model="editCostForm.amount" class="input input-bordered bg-base-300" required />
               </div>
               <div class="form-control">
                 <label class="label"><span class="label-text">Currency</span></label>
@@ -574,10 +592,34 @@ const deleteCost = async (costId: string) => {
         <div class="modal-box bg-base-200 max-w-2xl">
           <h3 class="font-bold text-lg mb-4">Jual Motor</h3>
           <form @submit.prevent="sellMotorcycle" class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="form-control">
                 <label class="label"><span class="label-text">Harga Jual *</span></label>
-                <input v-model="sellForm.sellingPrice" type="number" step="0.01" class="input input-bordered bg-base-300" required />
+                <ThousandsInput
+                  v-model="sellForm.sellingPrice"
+                  class="input input-bordered bg-base-300"
+                  required
+                  @update:model-value="sellingPricePercentage = ''"
+                />
+              </div>
+              <div class="form-control">
+                <label class="label"><span class="label-text">Persentase HPP</span></label>
+                <label class="input input-bordered bg-base-300 flex items-center gap-2">
+                  <input
+                    v-model="sellingPricePercentage"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="0.1"
+                    placeholder="120"
+                    class="grow min-w-0 bg-transparent outline-none"
+                    @input="updateSellingPriceFromPercentage"
+                  />
+                  <span class="text-base-content/60">%</span>
+                </label>
+                <label class="label py-1">
+                  <span class="label-text-alt text-base-content/60">120% = HPP + 20%</span>
+                </label>
               </div>
               <div class="form-control">
                 <label class="label"><span class="label-text">Tanggal Jual *</span></label>
@@ -602,14 +644,15 @@ const deleteCost = async (costId: string) => {
                 </select>
               </div>
             </div>
-            <div class="alert alert-info">
-              <IconInfoCircle class="w-6 h-6 shrink-0" :stroke-width="1.5" />
+            <div class="alert border border-info/30 bg-info/10 text-base-content">
+              <IconInfoCircle class="w-6 h-6 shrink-0 text-info" :stroke-width="1.5" />
               <div>
                 <p>HPP Motor: <strong>{{ formatCurrency(motorcycle?.totalCost || 0, motorcycle?.currency) }}</strong></p>
                 <p v-if="sellForm.sellingPrice">
                   Estimasi Profit: 
-                  <strong :class="parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0) >= 0 ? 'text-success' : 'text-error'">
-                    {{ formatCurrency(parseFloat(sellForm.sellingPrice) - (motorcycle?.totalCost || 0), sellForm.currency) }}
+                  <strong :class="estimatedProfit >= 0 ? 'text-success' : 'text-error'">
+                    {{ formatCurrency(estimatedProfit, sellForm.currency) }}
+                    ({{ estimatedProfitMargin.toFixed(1) }}%)
                   </strong>
                 </p>
               </div>

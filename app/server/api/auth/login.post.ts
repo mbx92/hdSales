@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
         userId: user.id,
         email: user.email,
         role: user.role,
+        dataOwnerId: user.accountOwnerId || user.id,
     })
 
     // Set cookie

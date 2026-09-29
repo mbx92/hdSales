@@ -1,7 +1,18 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
+import { getUserFromEvent } from '../../utils/jwt'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
+    const currentUser = getUserFromEvent(event)
     const id = getRouterParam(event, 'id')
+
+    if (currentUser?.role !== 'OWNER') {
+        throw createError({
+            statusCode: 403,
+            message: 'Hanya OWNER yang dapat menghapus transaksi',
+        })
+    }
 
     if (!id) {
         throw createError({ statusCode: 400, message: 'ID transaksi diperlukan' })
@@ -9,8 +20,8 @@ export default defineEventHandler(async (event) => {
 
     return await prisma.$transaction(async (tx) => {
         // 1. Get sale with items and sparepart info
-        const sale = await tx.sparepartSale.findUnique({
-            where: { id },
+        const sale = await tx.sparepartSale.findFirst({
+            where: { id, userId },
             include: {
                 items: {
                     include: {

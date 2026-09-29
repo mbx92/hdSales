@@ -27,7 +27,7 @@ const formData = ref({
   currency: motorcycle.value?.currency || 'IDR',
   status: motorcycle.value?.status || 'AVAILABLE',
   notes: motorcycle.value?.notes || '',
-  sellingPrice: motorcycle.value?.sellingPrice || null,
+  sellingPrice: motorcycle.value?.sellingPrice?.toString() || '',
 })
 
 // Re-sync form when data changes (for client navigation)
@@ -45,7 +45,7 @@ onMounted(() => {
       currency: motorcycle.value.currency,
       status: motorcycle.value.status,
       notes: motorcycle.value.notes || '',
-      sellingPrice: motorcycle.value.sellingPrice || null,
+      sellingPrice: motorcycle.value.sellingPrice?.toString() || '',
     }
     if (import.meta.dev) {
       console.log('🏍️ Form initialized with:', formData.value)
@@ -88,7 +88,12 @@ const handleSubmit = async () => {
   try {
     await $fetch(`/api/motorcycles/${id}`, {
       method: 'PATCH',
-      body: formData.value,
+      body: {
+        ...formData.value,
+        sellingPrice: formData.value.sellingPrice
+          ? parseFloat(formData.value.sellingPrice)
+          : null,
+      },
     })
 
     router.push(`/motorcycles/${id}`)
@@ -260,13 +265,10 @@ const handleSubmit = async () => {
                 <label class="label">
                   <span class="label-text font-medium">Harga Jual</span>
                 </label>
-                <input
+                <ThousandsInput
                   v-model="formData.sellingPrice"
-                  type="number"
-                  step="0.01"
                   placeholder="0"
                   class="input input-bordered bg-base-300"
-                  min="0"
                 />
               </div>
             </div>

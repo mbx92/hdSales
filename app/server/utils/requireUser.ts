@@ -7,7 +7,7 @@ import { requireAuth } from './jwt'
  */
 export function requireUser(event: H3Event): string {
     const auth = requireAuth(event)
-    return auth.userId
+    return auth.dataOwnerId || auth.userId
 }
 
 /**
@@ -17,7 +17,7 @@ export function requireUser(event: H3Event): string {
 export function getUserId(event: H3Event): string | null {
     try {
         const auth = requireAuth(event)
-        return auth.userId
+        return auth.dataOwnerId || auth.userId
     } catch {
         return null
     }

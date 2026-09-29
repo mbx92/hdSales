@@ -6,6 +6,8 @@ const router = useRouter()
 const { showError } = useAlert()
 const { showConfirm, confirmData, confirm, handleConfirm, handleCancel } = useConfirm()
 const id = route.params.id as string
+const authStore = useAuthStore()
+const isCashier = computed(() => authStore.user?.role === 'CASHIER')
 
 const { data: sparepart, pending, refresh } = await useFetch(`/api/spareparts/${id}`)
 const { data: suppliers } = await useFetch('/api/suppliers')
@@ -100,7 +102,7 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
             <IconPencil class="w-5 h-5 mr-1" :stroke-width="1.5" />
             Edit Info
           </button>
-          <button @click="deleteItem" class="btn btn-outline btn-error">
+          <button v-if="!isCashier" @click="deleteItem" class="btn btn-outline btn-error">
             <IconTrash class="w-5 h-5" :stroke-width="1.5" />
           </button>
         </div>
@@ -256,7 +258,10 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
             </div>
             <div class="form-control">
               <label class="label"><span class="label-text">Stok Saat Ini</span></label>
-              <input v-model="editForm.stock" type="number" class="input input-bordered bg-base-300" required />
+              <input v-model="editForm.stock" type="number" class="input input-bordered bg-base-300" :disabled="isCashier" required />
+              <label v-if="isCashier" class="label py-1">
+                <span class="label-text-alt text-info">Tambah stok melalui tombol penyesuaian stok pada daftar sparepart.</span>
+              </label>
             </div>
              <div class="form-control">
               <label class="label"><span class="label-text">Status</span></label>

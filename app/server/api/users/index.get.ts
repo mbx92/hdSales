@@ -26,12 +26,12 @@ export default defineEventHandler(async (event) => {
     })
 
     const totalUsers = users.length
-    const canAddUser = totalUsers < 2
+    const canAddUser = totalUsers < 10
 
     return {
         users,
         totalUsers,
         canAddUser,
-        maxUsers: 2
+        maxUsers: 10
     }
 })

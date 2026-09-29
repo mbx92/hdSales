@@ -21,6 +21,8 @@ const debouncedSearch = refDebounced(search, 300)
 const category = ref('ALL')
 const status = ref('ALL')
 const { showSuccess, showError } = useAlert()
+const authStore = useAuthStore()
+const isCashier = computed(() => authStore.user?.role === 'CASHIER')
 
 // Pagination
 const currentPage = ref(1)
@@ -82,6 +84,10 @@ const submitAdjustment = async () => {
 
   const quantity = Math.abs(Number(adjustForm.value.quantity))
   const isReduction = ['ADJUSTMENT', 'LOSS'].includes(adjustForm.value.type)
+
+  if (isCashier.value && isReduction) {
+    return showError('Kasir hanya dapat menambah stok. Pengurangan dilakukan melalui POS.')
+  }
 
   if (!Number.isInteger(quantity) || quantity < 1) {
     return showError('Jumlah harus berupa bilangan bulat minimal 1')
@@ -156,7 +162,7 @@ const toggleStatus = async (item: Sparepart) => {
         <p class="text-base-content/60">Manajemen services, sparepart, dan accessories</p>
       </div>
       <div class="flex gap-2">
-        <NuxtLink to="/spareparts/sell" class="btn btn-secondary">
+        <NuxtLink to="/pos" class="btn btn-secondary">
           <IconTag class="w-5 h-5 mr-1" :stroke-width="1.5" />
           Kasir / POS
         </NuxtLink>
@@ -335,9 +341,12 @@ const toggleStatus = async (item: Sparepart) => {
             <select v-model="adjustForm.type" class="select select-bordered bg-base-300">
               <option value="PURCHASE">Pembelian (+)</option>
               <option value="RETURN">Return (+)</option>
-              <option value="ADJUSTMENT">Penyesuaian (-)</option>
-              <option value="LOSS">Kehilangan (-)</option>
+              <option v-if="!isCashier" value="ADJUSTMENT">Penyesuaian (-)</option>
+              <option v-if="!isCashier" value="LOSS">Kehilangan (-)</option>
             </select>
+            <label v-if="isCashier" class="label py-1">
+              <span class="label-text-alt text-info">Kasir hanya dapat menambah stok. Stok berkurang otomatis melalui POS.</span>
+            </label>
           </div>
           
           <div class="form-control">

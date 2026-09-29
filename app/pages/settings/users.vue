@@ -24,7 +24,8 @@ const form = ref({
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'CASHIER',
 })
 
 const resetForm = () => {
@@ -32,7 +33,8 @@ const resetForm = () => {
         name: '',
         email: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        role: 'CASHIER',
     }
     error.value = ''
     success.value = ''
@@ -60,7 +62,8 @@ const handleAddUser = async () => {
             body: {
                 name: form.value.name,
                 email: form.value.email,
-                password: form.value.password
+                password: form.value.password,
+                role: form.value.role,
             }
         })
 
@@ -123,7 +126,11 @@ const handleAddUser = async () => {
                                 <td>
                                     <span :class="[
                                         'badge',
-                                        user.role === 'OWNER' ? 'badge-primary' : 'badge-secondary'
+                                        user.role === 'OWNER'
+                                            ? 'badge-primary'
+                                            : user.role === 'CASHIER'
+                                                ? 'badge-accent'
+                                                : 'badge-secondary'
                                     ]">
                                         {{ user.role }}
                                     </span>
@@ -187,6 +194,16 @@ const handleAddUser = async () => {
 
                     <div class="form-control">
                         <label class="label">
+                            <span class="label-text">Role</span>
+                        </label>
+                        <select v-model="form.role" class="select select-bordered" required>
+                            <option value="CASHIER">Kasir</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
                             <span class="label-text">Password</span>
                         </label>
                         <input
@@ -215,7 +232,8 @@ const handleAddUser = async () => {
 
                     <div class="alert alert-info">
                         <IconUser class="w-5 h-5" />
-                        <span>User baru akan mendapat role <strong>ADMIN</strong> dengan akses penuh ke data mereka sendiri.</span>
+                        <span v-if="form.role === 'CASHIER'">Kasir dapat mengakses Suppliers, Services & Spareparts, POS, dan menambah stok.</span>
+                        <span v-else>Admin memiliki akses penuh ke data mereka sendiri.</span>
                     </div>
 
                     <div class="modal-action">

@@ -12,11 +12,14 @@ datasource db {
 // ============================================
 
 model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String // Hashed with bcrypt
-  name     String
-  role     String @default("OWNER") // OWNER only
+  id             String  @id @default(cuid())
+  email          String  @unique
+  password       String // Hashed with bcrypt
+  name           String
+  role           String  @default("OWNER") // OWNER, ADMIN, CASHIER
+  accountOwnerId String?
+  accountOwner   User?   @relation("AccountStaff", fields: [accountOwnerId], references: [id], onDelete: SetNull)
+  staffUsers     User[]  @relation("AccountStaff")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -31,6 +34,7 @@ model User {
   exchangeRates   ExchangeRate[]
   invoiceCounters InvoiceCounter[]
 
+  @@index([accountOwnerId])
   @@map("users")
 }
 

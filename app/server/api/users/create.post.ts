@@ -6,6 +6,7 @@ import { getUserFromEvent } from '../../utils/jwt'
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
     const body = await readBody(event)
+    const role = body.role || 'ADMIN'
 
     // Get current user to check role
     const currentUser = getUserFromEvent(event)
@@ -16,12 +17,12 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Check total users limit (max 2)
+    // Keep a reasonable account limit while allowing dedicated cashier users.
     const totalUsers = await prisma.user.count()
-    if (totalUsers >= 2) {
+    if (totalUsers >= 10) {
         throw createError({
             statusCode: 400,
-            message: 'Maksimal 2 user sudah tercapai'
+            message: 'Maksimal 10 user sudah tercapai'
         })
     }
 
@@ -40,6 +41,13 @@ export default defineEventHandler(async (event) => {
         })
     }
 
+    if (!['ADMIN', 'CASHIER'].includes(role)) {
+        throw createError({
+            statusCode: 400,
+            message: 'Role user tidak valid'
+        })
+    }
+
     // Check if email already exists
     const existing = await prisma.user.findUnique({
         where: { email: body.email }
@@ -55,13 +63,13 @@ export default defineEventHandler(async (event) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(body.password, 12)
 
-    // Create user with ADMIN role (second user is always ADMIN)
     const user = await prisma.user.create({
         data: {
             name: body.name,
             email: body.email,
             password: hashedPassword,
-            role: 'ADMIN'
+            role,
+            accountOwnerId: role === 'CASHIER' ? userId : null,
         }
     })
 

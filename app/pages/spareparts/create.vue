@@ -2,7 +2,10 @@
 import { IconArrowLeft, IconInfoCircle } from '@tabler/icons-vue'
 
 const router = useRouter()
+const route = useRoute()
 const { showError } = useAlert()
+
+const returnPath = computed(() => route.query.returnTo === '/pos' ? '/pos' : '/spareparts')
 
 // Fetch suppliers for dropdown
 const { data: suppliers } = await useFetch('/api/suppliers')
@@ -37,7 +40,7 @@ const handleSubmit = async () => {
       method: 'POST',
       body: form.value
     })
-    router.push('/spareparts')
+    router.push(returnPath.value)
   } catch (e: any) {
     showError(e.data?.message || 'Gagal menambahkan produk')
   } finally {
@@ -50,7 +53,7 @@ const handleSubmit = async () => {
   <div class="max-w-4xl mx-auto space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
-      <NuxtLink to="/spareparts" class="btn btn-ghost btn-square">
+      <NuxtLink :to="returnPath" class="btn btn-ghost btn-square">
         <IconArrowLeft class="w-6 h-6" :stroke-width="1.5" />
       </NuxtLink>
       <div>
@@ -138,7 +141,7 @@ const handleSubmit = async () => {
         </div>
 
         <div class="flex justify-end gap-3 mt-4">
-          <NuxtLink to="/spareparts" class="btn btn-ghost">Batal</NuxtLink>
+          <NuxtLink :to="returnPath" class="btn btn-ghost">Batal</NuxtLink>
           <button type="submit" class="btn btn-primary px-8" :disabled="loading">
             <span v-if="loading" class="loading loading-spinner loading-sm"></span>
             Simpan Produk

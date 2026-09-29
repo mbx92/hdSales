@@ -1,8 +1,10 @@
 import prisma from '~/server/utils/prisma'
 import { requireUser } from '~/server/utils/requireUser'
+import { getUserFromEvent } from '~/server/utils/jwt'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
+    const currentUser = getUserFromEvent(event)
     const sparepartId = getRouterParam(event, 'id')
     const body = await readBody(event)
 
@@ -53,6 +55,14 @@ export default defineEventHandler(async (event) => {
     // The adjustment type is the source of truth for stock direction.
     // Users enter an absolute quantity; reduction types are normalized here.
     const isStockIncrease = type === 'PURCHASE' || type === 'RETURN'
+
+    if (currentUser?.role === 'CASHIER' && !isStockIncrease) {
+        throw createError({
+            statusCode: 403,
+            message: 'Kasir hanya dapat menambah stok. Pengurangan stok dilakukan melalui POS.',
+        })
+    }
+
     const quantity = isStockIncrease ? requestedQuantity : -requestedQuantity
     const previousStock = sparepart.stock
     const newStock = previousStock + quantity

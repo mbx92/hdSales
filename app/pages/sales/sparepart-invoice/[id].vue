@@ -4,6 +4,12 @@ import { IconDownload, IconArrowLeft, IconFileInvoice } from '@tabler/icons-vue'
 const route = useRoute()
 const id = route.params.id as string
 const { showError } = useAlert()
+const authStore = useAuthStore()
+const backPath = computed(() => {
+  return route.query.from === 'pos' || ['ADMIN', 'CASHIER'].includes(authStore.user?.role || '')
+    ? '/pos'
+    : '/sales'
+})
 
 const { data: sale, error } = await useFetch(`/api/sparepart-sales/${id}`)
 
@@ -175,7 +181,7 @@ const handleExportPDF = async () => {
   <div class="min-h-screen bg-base-100 p-4 md:p-8">
     <!-- Action Buttons -->
     <div class="mb-6 flex gap-3 justify-between items-center max-w-3xl mx-auto">
-      <NuxtLink to="/sales" class="btn btn-ghost btn-sm gap-2">
+      <NuxtLink :to="backPath" class="btn btn-ghost btn-sm gap-2">
         <IconArrowLeft class="w-4 h-4" />
         Kembali
       </NuxtLink>

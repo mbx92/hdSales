@@ -1,6 +1,8 @@
 import prisma from '../../utils/prisma'
+import { requireUser } from '../../utils/requireUser'
 
 export default defineEventHandler(async (event) => {
+    const userId = requireUser(event)
     const id = event.context.params?.id
 
     if (!id) {
@@ -10,8 +12,8 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const sale = await prisma.sparepartSale.findUnique({
-        where: { id },
+    const sale = await prisma.sparepartSale.findFirst({
+        where: { id, userId },
         include: {
             items: {
                 include: {
@@ -71,4 +73,3 @@ export default defineEventHandler(async (event) => {
         productItems
     }
 })
-

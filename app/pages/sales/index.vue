@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt, IconTrash } from '@tabler/icons-vue'
+import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt, IconTrash, IconEdit } from '@tabler/icons-vue'
+
+const authStore = useAuthStore()
+const isOwner = computed(() => authStore.user?.role === 'OWNER')
+const { showError, showSuccess } = useAlert()
 
 const activeTab = ref<'motorcycle' | 'product' | 'sparepart'>('motorcycle')
 const page = ref(1)
@@ -156,6 +160,120 @@ const confirmDelete = async () => {
     alert(error?.data?.message || 'Gagal menghapus transaksi')
   } finally {
     deleteInProgress.value = false
+  }
+}
+
+// Owner-only POS transaction correction
+const showEditModal = ref(false)
+const editLoading = ref(false)
+const editSaving = ref(false)
+const editSaleId = ref('')
+const editInvoiceNumber = ref('')
+const editForm = ref({
+  saleDate: '',
+  customerName: '',
+  customerPhone: '',
+  paymentMethod: 'CASH',
+  discount: '',
+  items: [] as any[],
+  productItems: [] as any[],
+})
+
+const toLocalDateTime = (value: string) => {
+  const date = new Date(value)
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return localTime.toISOString().slice(0, 16)
+}
+
+const editSubtotal = computed(() => {
+  const sparepartTotal = editForm.value.items.reduce(
+    (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
+    0,
+  )
+  const productTotal = editForm.value.productItems.reduce(
+    (sum, item) => sum + (Number(item.unitPrice) || 0),
+    0,
+  )
+  return sparepartTotal + productTotal
+})
+
+const editTotal = computed(() => Math.max(0, editSubtotal.value - (Number(editForm.value.discount) || 0)))
+
+const openEditModal = async (sale: any) => {
+  editLoading.value = true
+  editSaleId.value = sale.id
+  editInvoiceNumber.value = sale.invoiceNumber
+  showEditModal.value = true
+
+  try {
+    const detail: any = await $fetch(`/api/sparepart-sales/${sale.id}`)
+    editForm.value = {
+      saleDate: toLocalDateTime(detail.saleDate),
+      customerName: detail.customerName || '',
+      customerPhone: detail.customerPhone || '',
+      paymentMethod: detail.paymentMethod || 'CASH',
+      discount: String(detail.discount || ''),
+      items: (detail.items || []).map((item: any) => ({
+        id: item.id,
+        name: item.sparepart?.name || '-',
+        sku: item.sparepart?.sku || '-',
+        isService: item.sparepart?.category === 'SERVICE',
+        quantity: item.quantity,
+        unitPrice: String(item.unitPrice),
+      })),
+      productItems: (detail.productItems || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        unitPrice: String(item.unitPrice),
+      })),
+    }
+  } catch (error: any) {
+    showEditModal.value = false
+    showError(error?.data?.message || 'Gagal memuat transaksi')
+  } finally {
+    editLoading.value = false
+  }
+}
+
+const saveTransactionEdit = async () => {
+  const discount = Number(editForm.value.discount) || 0
+
+  if (!editForm.value.customerName.trim()) {
+    return showError('Nama customer wajib diisi')
+  }
+  if (discount > editSubtotal.value) {
+    return showError('Diskon tidak boleh melebihi subtotal')
+  }
+
+  editSaving.value = true
+  try {
+    await $fetch(`/api/sparepart-sales/${editSaleId.value}`, {
+      method: 'PATCH',
+      body: {
+        saleDate: new Date(editForm.value.saleDate).toISOString(),
+        customerName: editForm.value.customerName,
+        customerPhone: editForm.value.customerPhone,
+        paymentMethod: editForm.value.paymentMethod,
+        discount,
+        items: editForm.value.items.map(item => ({
+          id: item.id,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+        })),
+        productItems: editForm.value.productItems.map(item => ({
+          id: item.id,
+          unitPrice: Number(item.unitPrice),
+        })),
+      },
+    })
+    showEditModal.value = false
+    showSuccess('Transaksi berhasil diperbaiki')
+    await Promise.all([refreshSpareparts(), refresh()])
+  } catch (error: any) {
+    showError(error?.data?.message || 'Gagal memperbaiki transaksi')
+  } finally {
+    editSaving.value = false
   }
 }
 </script>
@@ -433,7 +551,10 @@ const confirmDelete = async () => {
                     <button @click="openPrintModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square" title="Print">
                       <IconPrinter class="w-4 h-4" />
                     </button>
-                    <button @click="openDeleteModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square text-error" title="Hapus" :disabled="deleteInProgress">
+                    <button v-if="isOwner" @click="openEditModal(sale)" class="btn btn-sm btn-ghost btn-square text-info" title="Edit transaksi">
+                      <IconEdit class="w-4 h-4" />
+                    </button>
+                    <button v-if="isOwner" @click="openDeleteModal(sale.id, sale.invoiceNumber)" class="btn btn-sm btn-ghost btn-square text-error" title="Hapus" :disabled="deleteInProgress">
                       <IconTrash class="w-4 h-4" />
                     </button>
                   </div>
@@ -533,6 +654,115 @@ const confirmDelete = async () => {
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="showPrintModal = false"></form>
+    </dialog>
+
+    <!-- Owner-only Edit POS Transaction Modal -->
+    <dialog :class="['modal', showEditModal && 'modal-open']">
+      <div class="modal-box bg-base-200 w-11/12 max-w-4xl">
+        <h3 class="font-bold text-lg">Edit Transaksi POS</h3>
+        <p class="text-sm text-base-content/60 mb-4">Invoice: {{ editInvoiceNumber }}</p>
+
+        <div v-if="editLoading" class="flex justify-center py-12">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+
+        <form v-else @submit.prevent="saveTransactionEdit" class="space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">Tanggal Transaksi</span></label>
+              <input v-model="editForm.saleDate" type="datetime-local" class="input input-bordered bg-base-300" required />
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Metode Bayar</span></label>
+              <select v-model="editForm.paymentMethod" class="select select-bordered bg-base-300" required>
+                <option value="CASH">Cash</option>
+                <option value="TRANSFER">Transfer</option>
+                <option value="CARD">Kartu Debit/Kredit</option>
+                <option value="QRIS">QRIS</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Nama Customer</span></label>
+              <input v-model="editForm.customerName" type="text" class="input input-bordered bg-base-300" required />
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">No. Telepon</span></label>
+              <input v-model="editForm.customerPhone" type="tel" class="input input-bordered bg-base-300" />
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-bold mb-2">Item Transaksi</h4>
+            <div class="space-y-2">
+              <div
+                v-for="item in editForm.items"
+                :key="item.id"
+                class="grid grid-cols-1 md:grid-cols-[1fr_110px_190px] gap-3 items-end rounded-lg border border-base-300 bg-base-100/40 p-3"
+              >
+                <div>
+                  <p class="font-medium">{{ item.name }}</p>
+                  <p class="text-xs text-base-content/60">{{ item.sku }} <span v-if="item.isService">• Service</span></p>
+                </div>
+                <div class="form-control">
+                  <label class="label py-1"><span class="label-text text-xs">Qty</span></label>
+                  <input v-model.number="item.quantity" type="number" min="1" step="1" class="input input-bordered bg-base-300" required />
+                </div>
+                <div class="form-control">
+                  <label class="label py-1"><span class="label-text text-xs">Harga Satuan</span></label>
+                  <ThousandsInput v-model="item.unitPrice" class="input input-bordered bg-base-300" required />
+                </div>
+              </div>
+
+              <div
+                v-for="item in editForm.productItems"
+                :key="item.id"
+                class="grid grid-cols-1 md:grid-cols-[1fr_110px_190px] gap-3 items-end rounded-lg border border-base-300 bg-base-100/40 p-3"
+              >
+                <div>
+                  <p class="font-medium">{{ item.name }}</p>
+                  <p class="text-xs text-base-content/60">{{ item.sku }} • Produk</p>
+                </div>
+                <div class="form-control">
+                  <label class="label py-1"><span class="label-text text-xs">Qty</span></label>
+                  <input value="1" type="number" class="input input-bordered bg-base-300" disabled />
+                </div>
+                <div class="form-control">
+                  <label class="label py-1"><span class="label-text text-xs">Harga Satuan</span></label>
+                  <ThousandsInput v-model="item.unitPrice" class="input input-bordered bg-base-300" required />
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-base-content/60 mt-2">Jenis item tidak dapat diganti dalam koreksi. Buat transaksi baru jika item yang dipilih salah.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div class="form-control">
+              <label class="label"><span class="label-text">Diskon</span></label>
+              <ThousandsInput v-model="editForm.discount" class="input input-bordered bg-base-300" />
+            </div>
+            <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 space-y-1 text-sm">
+              <div class="flex justify-between"><span>Subtotal</span><span class="font-mono">{{ formatCurrency(editSubtotal) }}</span></div>
+              <div class="flex justify-between"><span>Diskon</span><span class="font-mono">{{ formatCurrency(Number(editForm.discount) || 0) }}</span></div>
+              <div class="flex justify-between border-t border-base-300 pt-1 font-bold"><span>Total</span><span class="font-mono text-success">{{ formatCurrency(editTotal) }}</span></div>
+            </div>
+          </div>
+
+          <div class="alert border border-warning/30 bg-warning/10 text-base-content text-sm">
+            Perubahan qty akan otomatis menyesuaikan stok berdasarkan selisih dari transaksi sebelumnya.
+          </div>
+
+          <div class="modal-action">
+            <button type="button" class="btn btn-ghost" :disabled="editSaving" @click="showEditModal = false">Batal</button>
+            <button type="submit" class="btn btn-primary" :disabled="editSaving">
+              <span v-if="editSaving" class="loading loading-spinner loading-sm"></span>
+              Simpan Perbaikan
+            </button>
+          </div>
+        </form>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="showEditModal = false">close</button>
+      </form>
     </dialog>
 
     <!-- Delete Confirmation Modal -->
