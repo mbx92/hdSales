@@ -30,6 +30,10 @@ yang sudah tersedia di Coolify.
 5. Pastikan external network bernama `coolify` tersedia. Network ini sudah tersedia
    pada instalasi Coolify normal.
 
+Build Nuxt dibatasi ke heap Node.js 512 MB agar proses build tidak menghabiskan memori
+server Coolify. Nilai ini dapat diganti dengan build argument `BUILD_NODE_OPTIONS`
+jika kapasitas server berbeda.
+
 Stack ini menggunakan database yang sudah ada dan tidak membuat akun atau data
 bootstrap apa pun. Saat container `app` dimulai, `prisma migrate deploy` dijalankan
 sebelum server.

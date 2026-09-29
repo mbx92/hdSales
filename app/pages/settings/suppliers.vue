@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconSearch, IconPlus, IconPencil, IconTrash, IconTruck, IconMapPin, IconPhone, IconMail } from '@tabler/icons-vue'
+import { IconSearch, IconPlus, IconPencil, IconTrash, IconTruck, IconMapPin, IconPhone, IconMail } from '~/utils/tabler-icons'
 
 interface Supplier {
   id: string

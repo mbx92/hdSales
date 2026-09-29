@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconSearch, IconMotorbike, IconLayoutGrid, IconList } from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconMotorbike, IconLayoutGrid, IconList } from '~/utils/tabler-icons'
 
 const route = useRoute()
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconSearch, IconPlus, IconFilter, IconAlertTriangle, IconPackage, IconTag, IconAdjustments, IconInfinity, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue'
+import { IconSearch, IconPlus, IconFilter, IconAlertTriangle, IconPackage, IconTag, IconAdjustments, IconInfinity, IconChevronLeft, IconChevronRight } from '~/utils/tabler-icons'
 
 interface Sparepart {
   id: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconBox, IconMotorbike, IconBuildingWarehouse, IconCurrencyDollar, IconFileSpreadsheet, IconFileTypePdf, IconPackage } from '@tabler/icons-vue'
+import { IconBox, IconMotorbike, IconBuildingWarehouse, IconCurrencyDollar, IconFileSpreadsheet, IconFileTypePdf, IconPackage } from '~/utils/tabler-icons'
 import { useExport } from '~/composables/useExport'
 
 const { exportInventoryToExcel, exportInventoryToPDF } = useExport()

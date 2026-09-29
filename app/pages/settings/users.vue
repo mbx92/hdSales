@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconUserPlus, IconUser, IconAlertCircle, IconCircleCheck } from '@tabler/icons-vue'
+import { IconUserPlus, IconUser, IconAlertCircle, IconCircleCheck } from '~/utils/tabler-icons'
 
 const authStore = useAuthStore()
 

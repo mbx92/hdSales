@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconSearch, IconBox, IconReceipt, IconLayoutGrid, IconList } from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconBox, IconReceipt, IconLayoutGrid, IconList } from '~/utils/tabler-icons'
 
 const status = ref('')
 const category = ref('')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconArrowLeft, IconInfoCircle } from '@tabler/icons-vue'
+import { IconArrowLeft, IconInfoCircle } from '~/utils/tabler-icons'
 
 const router = useRouter()
 const route = useRoute()

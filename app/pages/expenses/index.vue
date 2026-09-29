@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconEdit, IconTrash, IconFilter, IconReceipt, IconWallet, IconBuildingStore, IconBolt, IconUsers, IconSpeakerphone, IconTool, IconDotsVertical, IconChevronLeft, IconChevronRight, IconCoin } from '@tabler/icons-vue'
+import { IconPlus, IconEdit, IconTrash, IconFilter, IconReceipt, IconWallet, IconBuildingStore, IconBolt, IconUsers, IconSpeakerphone, IconTool, IconDotsVertical, IconChevronLeft, IconChevronRight, IconCoin } from '~/utils/tabler-icons'
 
 const { showError, showSuccess } = useAlert()
 

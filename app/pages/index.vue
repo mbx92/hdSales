@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconMotorbike, IconCurrencyDollar, IconCash, IconTrendingUp, IconPlus, IconCircleCheck, IconClipboardList, IconChartBar, IconReportAnalytics } from '@tabler/icons-vue'
+import { IconMotorbike, IconCurrencyDollar, IconCash, IconTrendingUp, IconPlus, IconCircleCheck, IconClipboardList, IconChartBar, IconReportAnalytics } from '~/utils/tabler-icons'
 
 const { data: summary, pending: summaryPending } = await useFetch('/api/dashboard/summary')
 const { data: charts, pending: chartsPending } = await useFetch('/api/dashboard/charts')

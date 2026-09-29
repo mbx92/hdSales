@@ -14,6 +14,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM dependencies AS builder
+ARG BUILD_NODE_OPTIONS=--max-old-space-size=512
+ENV NODE_OPTIONS=${BUILD_NODE_OPTIONS}
 COPY . .
 RUN npx prisma generate
 RUN npm run build

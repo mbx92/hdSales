@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar, IconLayoutGrid, IconList, IconCash, IconBuildingBank, IconCreditCard, IconQrcode } from '@tabler/icons-vue'
+import { IconShoppingCart, IconTrash, IconSearch, IconCheck, IconPackage, IconDownload, IconInfinity, IconReceipt, IconBox, IconCurrencyDollar, IconLayoutGrid, IconList, IconCash, IconBuildingBank, IconCreditCard, IconQrcode } from '~/utils/tabler-icons'
 
 const { showError, showWarning } = useAlert()
 const viewMode = useCookie<'grid' | 'list'>('pos-products-view-mode', {

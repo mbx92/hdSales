@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconAlertCircle } from '@tabler/icons-vue'
+import { IconAlertCircle } from '~/utils/tabler-icons'
 
 definePageMeta({
   layout: false

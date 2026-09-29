@@ -6,7 +6,7 @@ import {
   IconPackage,
   IconPlus,
   IconShoppingCart,
-} from '@tabler/icons-vue'
+} from '~/utils/tabler-icons'
 
 definePageMeta({
   layout: false,

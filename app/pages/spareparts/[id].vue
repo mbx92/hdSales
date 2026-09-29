@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconArrowLeft, IconPencil, IconTrash, IconHistory, IconPackage, IconAlertTriangle } from '@tabler/icons-vue'
+import { IconArrowLeft, IconPencil, IconTrash, IconHistory, IconPackage, IconAlertTriangle } from '~/utils/tabler-icons'
 
 const route = useRoute()
 const router = useRouter()

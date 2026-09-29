@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconAlertCircle, IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-vue'
+import { IconAlertCircle, IconCheck, IconAlertTriangle, IconX } from '~/utils/tabler-icons'
 
 const props = defineProps<{
   modelValue: boolean

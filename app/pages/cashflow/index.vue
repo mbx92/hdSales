@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconArrowUp, IconArrowDown, IconChartBar, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue'
+import { IconArrowUp, IconArrowDown, IconChartBar, IconChevronLeft, IconChevronRight } from '~/utils/tabler-icons'
 
 interface CashflowSummary {
   summary: {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt, IconTrash, IconEdit } from '@tabler/icons-vue'
+import { IconCash, IconMotorbike, IconBox, IconPrinter, IconCalendar, IconChevronLeft, IconChevronRight, IconSearch, IconPackage, IconDownload, IconReceipt, IconTrash, IconEdit } from '~/utils/tabler-icons'
 
 const authStore = useAuthStore()
 const isOwner = computed(() => authStore.user?.role === 'OWNER')

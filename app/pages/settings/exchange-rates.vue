@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconPlus, IconInfoCircle, IconRefresh } from '@tabler/icons-vue'
+import { IconPlus, IconInfoCircle, IconRefresh } from '~/utils/tabler-icons'
 
 // Type untuk response API
 interface ExchangeRate {

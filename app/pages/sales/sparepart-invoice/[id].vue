@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconDownload, IconArrowLeft, IconFileInvoice } from '@tabler/icons-vue'
+import { IconDownload, IconArrowLeft, IconFileInvoice } from '~/utils/tabler-icons'
 
 const route = useRoute()
 const id = route.params.id as string

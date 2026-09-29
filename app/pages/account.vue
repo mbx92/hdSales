@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconLock, IconUser, IconKey, IconCheck } from '@tabler/icons-vue'
+import { IconLock, IconUser, IconKey, IconCheck } from '~/utils/tabler-icons'
 
 const authStore = useAuthStore()
 const { showError, showSuccess } = useAlert()

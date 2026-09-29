@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconHome, IconMotorbike, IconCash, IconChartBar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconWallet, IconUsers, IconShoppingCart } from '@tabler/icons-vue'
+import { IconHome, IconMotorbike, IconCash, IconChartBar, IconLogout, IconMenu2, IconPackage, IconTruck, IconReportAnalytics, IconBox, IconWallet, IconUsers, IconShoppingCart } from '~/utils/tabler-icons'
 
 const route = useRoute()
 const authStore = useAuthStore()

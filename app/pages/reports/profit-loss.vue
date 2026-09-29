@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconTrendingUp, IconTrendingDown, IconReceipt, IconFilter, IconChevronDown, IconChevronUp, IconFileSpreadsheet, IconFileTypePdf, IconMotorbike, IconBox } from '@tabler/icons-vue'
+import { IconTrendingUp, IconTrendingDown, IconReceipt, IconFilter, IconChevronDown, IconChevronUp, IconFileSpreadsheet, IconFileTypePdf, IconMotorbike, IconBox } from '~/utils/tabler-icons'
 import { useExport } from '~/composables/useExport'
 
 const { exportPnLToExcel, exportPnLToPDF } = useExport()
