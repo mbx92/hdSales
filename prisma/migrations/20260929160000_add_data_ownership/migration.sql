@@ -1,9 +1,9 @@
--- Complete the per-owner data model that predates the migration history.
--- This migration never updates, deletes, or replaces existing business data.
--- Existing rows must already have a valid userId before NOT NULL constraints
--- and foreign keys are installed.
-
-BEGIN;
+-- Add owner columns to tables that already exist in production.
+-- No table is dropped and no business row is deleted. Child records
+-- (costs, sales, invoice lines, stock) stay attached to their parents.
+-- Existing unique keys such as vin, sku, and invoice number are kept.
+-- A NULL userId is filled from the single existing owner account.
+-- Rows that already have a userId are left unchanged.
 
 ALTER TABLE "motorcycles" ADD COLUMN IF NOT EXISTS "userId" TEXT;
 ALTER TABLE "cash_flows" ADD COLUMN IF NOT EXISTS "userId" TEXT;
@@ -17,8 +17,34 @@ ALTER TABLE "suppliers" ADD COLUMN IF NOT EXISTS "userId" TEXT;
 
 DO $$
 DECLARE
+    owner_id TEXT;
+    owner_count INTEGER;
     null_details TEXT;
 BEGIN
+    SELECT count(*) INTO owner_count
+    FROM "users"
+    WHERE role = 'OWNER' AND "accountOwnerId" IS NULL;
+
+    IF owner_count = 1 THEN
+        SELECT id INTO owner_id
+        FROM "users"
+        WHERE role = 'OWNER' AND "accountOwnerId" IS NULL;
+    ELSIF owner_count = 0 AND (SELECT count(*) FROM "users") = 1 THEN
+        SELECT id INTO owner_id FROM "users";
+    END IF;
+
+    IF owner_id IS NOT NULL THEN
+        UPDATE "motorcycles" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "cash_flows" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "exchange_rates" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "expenses" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "invoice_counters" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "products" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "sparepart_sales" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "spareparts" SET "userId" = owner_id WHERE "userId" IS NULL;
+        UPDATE "suppliers" SET "userId" = owner_id WHERE "userId" IS NULL;
+    END IF;
+
     SELECT string_agg(table_name || '=' || null_count, ', ' ORDER BY table_name)
     INTO null_details
     FROM (
@@ -44,7 +70,7 @@ BEGIN
 
     IF null_details IS NOT NULL THEN
         RAISE EXCEPTION
-            'Migration stopped without changing existing data. Fill userId manually for: %',
+            'Migration stopped. No rows were deleted. Assign userId manually for: %',
             null_details;
     END IF;
 END $$;
@@ -111,5 +137,3 @@ BEGIN
             FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
     END IF;
 END $$;
-
-COMMIT;
