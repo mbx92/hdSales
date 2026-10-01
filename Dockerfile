@@ -35,8 +35,9 @@ COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_m
 COPY --from=builder --chown=node:node /app/.output ./.output
 COPY --from=builder --chown=node:node /app/prisma ./prisma
 COPY --chown=node:node package.json package-lock.json ./
+COPY --chown=node:node docker/start.sh ./docker/start.sh
 
 USER node
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node .output/server/index.mjs"]
+CMD ["sh", "./docker/start.sh"]
