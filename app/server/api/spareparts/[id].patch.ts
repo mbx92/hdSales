@@ -21,14 +21,17 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (
-        currentUser?.role === 'CASHIER' &&
-        body.stock !== undefined &&
-        parseInt(body.stock) !== existing.stock
-    ) {
+    if (body.stock !== undefined && parseInt(body.stock) !== existing.stock) {
         throw createError({
-            statusCode: 403,
-            message: 'Kasir harus menggunakan Penyesuaian Stok untuk menambah stok',
+            statusCode: currentUser?.role === 'CASHIER' ? 403 : 400,
+            message: 'Perubahan stok harus melalui Penyesuaian Stok agar batch FIFO tetap akurat',
+        })
+    }
+
+    if (body.category === 'SERVICE' && existing.category !== 'SERVICE' && existing.stock > 0) {
+        throw createError({
+            statusCode: 400,
+            message: 'Habiskan atau sesuaikan stok ke 0 sebelum mengubah item menjadi SERVICE',
         })
     }
 
@@ -45,7 +48,6 @@ export default defineEventHandler(async (event) => {
     if (body.purchasePrice) data.purchasePrice = parseFloat(body.purchasePrice)
     if (body.sellingPrice) data.sellingPrice = parseFloat(body.sellingPrice)
     if (body.currency) data.currency = body.currency
-    if (body.stock !== undefined) data.stock = parseInt(body.stock)
     if (body.minStock !== undefined) data.minStock = parseInt(body.minStock)
     if (body.supplierId !== undefined) data.supplierId = body.supplierId || null
     if (body.status) data.status = body.status

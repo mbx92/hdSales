@@ -1,6 +1,7 @@
 import prisma from '../../utils/prisma'
 import { generateInvoiceNumber } from '../../utils/generateInvoice'
 import { requireUser } from '../../utils/requireUser'
+import { consumeFifo, lockSparepart, saveFifoAllocations } from '../../utils/sparepartFifo'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
@@ -37,10 +38,25 @@ export default defineEventHandler(async (event) => {
     }
 
     return await prisma.$transaction(async (tx) => {
+        const physicalSparepartIds = items
+            .filter(item => item.itemType !== 'product')
+            .map(item => item.id)
+            .sort()
+        for (const sparepartId of physicalSparepartIds) {
+            await lockSparepart(tx, sparepartId)
+        }
+
         // Separate subtotals for spareparts and products
         let sparepartSubtotal = 0
         let productSubtotal = 0
-        const sparepartItems: Array<{ id: string; quantity: number; price: number; isService: boolean; name: string }> = []
+        const sparepartItems: Array<{
+            id: string
+            quantity: number
+            price: number
+            isService: boolean
+            name: string
+            purchasePrice: number
+        }> = []
         const productItems: Array<{ id: string; price: number; name: string }> = []
 
         // Check stock & calculate subtotals - validate ownership
@@ -66,7 +82,14 @@ export default defineEventHandler(async (event) => {
                     throw createError({ statusCode: 400, message: `Stok tidak cukup untuk: ${sparepart.name}` })
                 }
 
-                sparepartItems.push({ id: item.id, quantity: item.quantity, price: item.price, isService, name: sparepart.name })
+                sparepartItems.push({
+                    id: item.id,
+                    quantity: item.quantity,
+                    price: item.price,
+                    isService,
+                    name: sparepart.name,
+                    purchasePrice: sparepart.purchasePrice,
+                })
                 sparepartSubtotal += item.quantity * item.price
             }
         }
@@ -114,19 +137,28 @@ export default defineEventHandler(async (event) => {
         }
 
         // Handle Product sales FIRST - create separate CashFlow for each product
-        for (const item of productItems) {
+        let allocatedProductDiscount = 0
+        for (const [index, item] of productItems.entries()) {
             const product = await tx.product.findUnique({ where: { id: item.id } })
             if (!product) continue
+
+            const discountShare = index === productItems.length - 1
+                ? productDiscount - allocatedProductDiscount
+                : Math.round(productDiscount * (item.price / productSubtotal))
+            allocatedProductDiscount += discountShare
+            const netPrice = Math.max(0, item.price - discountShare)
+            const profit = netPrice - (product.totalCost || 0)
+            const profitMargin = netPrice > 0 ? (profit / netPrice) * 100 : 0
 
             // Create ProductSale cashflow
             const productCashFlow = await tx.cashFlow.create({
                 data: {
                     userId,
                     type: 'INCOME',
-                    amount: item.price,
+                    amount: netPrice,
                     currency: 'IDR',
                     exchangeRate: 1,
-                    amountIdr: item.price,
+                    amountIdr: netPrice,
                     category: 'PRODUCT_SALE',
                     description: `Penjualan Produk: ${product.name} (via POS #${invoiceNumber})`,
                     transactionDate: new Date(),
@@ -143,12 +175,12 @@ export default defineEventHandler(async (event) => {
                     exchangeRate: 1,
                     sellingPriceIdr: item.price,
                     totalCost: product.totalCost || 0,
-                    profit: item.price - (product.totalCost || 0),
-                    profitMargin: product.totalCost ? ((item.price - product.totalCost) / item.price) * 100 : 100,
+                    profit,
+                    profitMargin,
                     buyerName: body.customerName || 'Cash Customer',
                     buyerPhone: body.customerPhone,
                     paymentMethod: body.paymentMethod || 'CASH',
-                    paidAmount: item.price,
+                    paidAmount: netPrice,
                     cashFlowId: productCashFlow.id
                 }
             })
@@ -160,7 +192,7 @@ export default defineEventHandler(async (event) => {
                 data: {
                     status: 'SOLD',
                     sellingPrice: item.price,
-                    profit: item.price - (product.totalCost || 0)
+                    profit,
                 }
             })
         }
@@ -198,25 +230,52 @@ export default defineEventHandler(async (event) => {
                 currency: 'IDR',
                 cashFlowId: cashFlowId!,
                 notes: productSaleIds.length > 0 ? `PRODUCTS:${productSaleIds.join(',')}` : null,
-                items: {
-                    create: sparepartItems.map(item => ({
-                        sparepartId: item.id,
-                        quantity: item.quantity,
-                        unitPrice: item.price,
-                        subtotal: item.quantity * item.price
-                    }))
-                }
             }
         })
 
-        // Update Sparepart Stock (skip for SERVICE category)
-        for (const item of sparepartItems) {
+        // Persist the financial snapshot and consume physical stock using FIFO.
+        let allocatedSparepartDiscount = 0
+        for (const [index, item] of sparepartItems.entries()) {
+            const itemSubtotal = item.quantity * item.price
+            const discountAmount = index === sparepartItems.length - 1
+                ? sparepartDiscount - allocatedSparepartDiscount
+                : Math.round(sparepartDiscount * (itemSubtotal / sparepartSubtotal))
+            allocatedSparepartDiscount += discountAmount
+            const netRevenue = itemSubtotal - discountAmount
+
+            const saleItem = await tx.sparepartSaleItem.create({
+                data: {
+                    saleId: sale.id,
+                    sparepartId: item.id,
+                    quantity: item.quantity,
+                    unitPrice: item.price,
+                    subtotal: itemSubtotal,
+                    discountAmount,
+                    netRevenue,
+                    costOfGoods: 0,
+                    profit: netRevenue,
+                },
+            })
+
+            let costOfGoods = item.purchasePrice * item.quantity
             if (!item.isService) {
+                const fifo = await consumeFifo(tx, item.id, item.quantity)
+                costOfGoods = fifo.costOfGoods
+                await saveFifoAllocations(tx, saleItem.id, fifo.allocations)
+
                 await tx.sparepart.update({
                     where: { id: item.id },
                     data: { stock: { decrement: item.quantity } }
                 })
             }
+
+            await tx.sparepartSaleItem.update({
+                where: { id: saleItem.id },
+                data: {
+                    costOfGoods,
+                    profit: netRevenue - costOfGoods,
+                },
+            })
         }
 
         return {

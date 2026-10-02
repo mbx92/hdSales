@@ -286,6 +286,7 @@ model Sparepart {
 
   saleItems        SparepartSaleItem[]
   stockAdjustments StockAdjustment[]
+  stockBatches     SparepartStockBatch[]
 
   @@unique([userId, sku])
   @@index([userId])
@@ -317,10 +318,35 @@ model StockAdjustment {
   cashFlowId String?
   cashFlow   CashFlow? @relation(fields: [cashFlowId], references: [id])
 
+  stockBatch SparepartStockBatch?
+
   @@index([sparepartId])
   @@index([type])
   @@index([createdAt])
   @@map("stock_adjustments")
+}
+
+model SparepartStockBatch {
+  id          String    @id @default(cuid())
+  sparepartId String
+  sparepart   Sparepart @relation(fields: [sparepartId], references: [id], onDelete: Cascade)
+
+  stockAdjustmentId String?          @unique
+  stockAdjustment   StockAdjustment? @relation(fields: [stockAdjustmentId], references: [id], onDelete: SetNull)
+
+  sourceType        String
+  initialQuantity   Int
+  remainingQuantity Int
+  unitCost          Float
+  receivedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  costAllocations SparepartSaleItemCost[]
+
+  @@index([sparepartId, receivedAt])
+  @@index([sparepartId, remainingQuantity])
+  @@map("sparepart_stock_batches")
 }
 
 model SparepartSale {
@@ -373,9 +399,37 @@ model SparepartSaleItem {
   unitPrice Float
   subtotal  Float
 
+  // Immutable financial snapshots. Physical items use FIFO; services use the
+  // service cost recorded when the sale is posted.
+  discountAmount Float @default(0)
+  netRevenue     Float @default(0)
+  costOfGoods    Float @default(0)
+  profit         Float @default(0)
+
   createdAt DateTime @default(now())
 
+  costAllocations SparepartSaleItemCost[]
+
   @@map("sparepart_sale_items")
+}
+
+model SparepartSaleItemCost {
+  id String @id @default(cuid())
+
+  saleItemId String
+  saleItem   SparepartSaleItem @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+
+  stockBatchId String
+  stockBatch   SparepartStockBatch @relation(fields: [stockBatchId], references: [id], onDelete: Restrict)
+
+  quantity  Int
+  unitCost  Float
+  totalCost Float
+  createdAt DateTime @default(now())
+
+  @@index([saleItemId])
+  @@index([stockBatchId])
+  @@map("sparepart_sale_item_costs")
 }
 
 // ============================================

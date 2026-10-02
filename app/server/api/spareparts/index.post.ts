@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
     const body = await readBody(event)
-    const stock = Number(body.stock || 0)
+    const requestedStock = Number(body.stock || 0)
 
     if (!body.name) {
         throw createError({
@@ -15,12 +15,23 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    if (!Number.isInteger(stock) || stock < 0) {
+    if (!Number.isInteger(requestedStock) || requestedStock < 0) {
         throw createError({
             statusCode: 400,
             message: 'Stok awal harus berupa bilangan bulat positif atau nol'
         })
     }
+
+    const purchasePrice = Number(body.purchasePrice)
+    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
+        throw createError({
+            statusCode: 400,
+            message: 'Harga beli tidak valid'
+        })
+    }
+
+    const isService = body.category === 'SERVICE'
+    const stock = isService ? 0 : requestedStock
 
     const sparepart = await prisma.$transaction(async (tx) => {
         const created = await tx.sparepart.create({
@@ -31,7 +42,7 @@ export default defineEventHandler(async (event) => {
                 category: body.category,
                 brand: body.brand,
                 description: body.description,
-                purchasePrice: parseFloat(body.purchasePrice),
+                purchasePrice,
                 sellingPrice: parseFloat(body.sellingPrice),
                 currency: body.currency || 'IDR',
                 stock,
@@ -41,10 +52,25 @@ export default defineEventHandler(async (event) => {
             }
         })
 
-        return await tx.sparepart.update({
+        const sparepart = await tx.sparepart.update({
             where: { id: created.id },
             data: { sku: createSparepartSku(created.category, created.id) },
         })
+
+        if (stock > 0) {
+            await tx.sparepartStockBatch.create({
+                data: {
+                    sparepartId: sparepart.id,
+                    sourceType: 'OPENING_BALANCE',
+                    initialQuantity: stock,
+                    remainingQuantity: stock,
+                    unitCost: purchasePrice,
+                    receivedAt: sparepart.createdAt,
+                },
+            })
+        }
+
+        return sparepart
     })
 
     return sparepart

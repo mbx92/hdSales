@@ -81,7 +81,8 @@ const handleExportExcel = async () => {
             report.value.summary, 
             report.value.period, 
             report.value.categoryBreakdown,
-            report.value.expenses
+            report.value.expenses,
+            report.value.purchases
         )
     } catch (error) {
         console.error('Export Excel error:', error)
@@ -100,7 +101,8 @@ const handleExportPDF = async () => {
             report.value.summary, 
             report.value.period, 
             report.value.categoryBreakdown,
-            report.value.expenses
+            report.value.expenses,
+            report.value.purchases
         )
     } catch (error) {
         console.error('Export PDF error:', error)
@@ -381,6 +383,77 @@ const handleExportPDF = async () => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Purchases (informational, capitalized until sold) -->
+            <div class="card bg-base-200 border border-base-300">
+                <div class="card-body">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-4">
+                        <div>
+                            <h2 class="card-title text-lg"><IconBox class="w-5 h-5" :stroke-width="1.5" /> Pembelian Stok Sparepart</h2>
+                            <p class="text-sm text-base-content/60 mt-1">
+                                Pembelian menambah aset persediaan. Nilainya masuk perhitungan laba sebagai HPP FIFO ketika stok terjual.
+                            </p>
+                        </div>
+                        <div class="text-left md:text-right">
+                            <p class="text-xs text-base-content/60">Total Pembelian Periode Ini</p>
+                            <p class="text-xl font-mono font-bold text-warning">{{ formatCurrency(report.purchases?.total || 0) }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="rounded-lg bg-base-300/50 p-3">
+                            <p class="text-xs text-base-content/60">Transaksi Pembelian</p>
+                            <p class="text-lg font-bold">{{ report.purchases?.count || 0 }}</p>
+                        </div>
+                        <div class="rounded-lg bg-base-300/50 p-3">
+                            <p class="text-xs text-base-content/60">Total Unit Dibeli</p>
+                            <p class="text-lg font-bold">{{ report.purchases?.totalQuantity || 0 }}</p>
+                        </div>
+                    </div>
+
+                    <div v-if="report.purchases?.details?.length" class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Sparepart</th>
+                                    <th>Supplier</th>
+                                    <th class="text-right">Qty</th>
+                                    <th class="text-right">Harga/Unit</th>
+                                    <th class="text-right">Total</th>
+                                    <th class="text-right">Sisa Batch</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="purchase in report.purchases.details" :key="purchase.id" class="hover">
+                                    <td class="whitespace-nowrap">{{ formatDate(purchase.transactionDate) }}</td>
+                                    <td>
+                                        <div class="font-medium">{{ purchase.name }}</div>
+                                        <div class="text-xs text-base-content/50">{{ purchase.sku }} · {{ purchase.category }}</div>
+                                    </td>
+                                    <td>{{ purchase.supplierName }}</td>
+                                    <td class="text-right font-mono">{{ purchase.quantity }}</td>
+                                    <td class="text-right font-mono">{{ formatCurrency(purchase.unitCost) }}</td>
+                                    <td class="text-right font-mono font-bold">{{ formatCurrency(purchase.totalAmount) }}</td>
+                                    <td class="text-right font-mono">{{ purchase.remainingQuantity ?? '-' }}</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-base-300/50">
+                                    <td colspan="3" class="font-bold">Total</td>
+                                    <td class="text-right font-mono font-bold">{{ report.purchases.totalQuantity }}</td>
+                                    <td></td>
+                                    <td class="text-right font-mono font-bold">{{ formatCurrency(report.purchases.total) }}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div v-else class="text-center py-8 text-base-content/40">
+                        Tidak ada pembelian stok pada periode ini
                     </div>
                 </div>
             </div>

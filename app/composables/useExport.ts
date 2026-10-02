@@ -83,6 +83,27 @@ interface ExpenseData {
     details: ExpenseDetail[]
 }
 
+interface PurchaseDetail {
+    id: string
+    transactionDate: string
+    name: string
+    sku: string
+    category: string
+    supplierName: string
+    quantity: number
+    unitCost: number
+    totalAmount: number
+    remainingQuantity: number | null
+    reason?: string | null
+}
+
+interface PurchaseData {
+    total: number
+    count: number
+    totalQuantity: number
+    details: PurchaseDetail[]
+}
+
 interface InventoryAsset {
     id: string
     type: string
@@ -354,7 +375,8 @@ export function useExport() {
         summary: PnLSummary & { totalExpenses?: number; netProfit?: number; netProfitMargin?: number },
         period: { startDate: string, endDate: string },
         categoryBreakdown?: PnLCategoryBreakdown,
-        expenseData?: ExpenseData
+        expenseData?: ExpenseData,
+        purchaseData?: PurchaseData,
     ) => {
         const XLSX = await import('xlsx')
         const wb = XLSX.utils.book_new()
@@ -522,6 +544,30 @@ export function useExport() {
             XLSX.utils.book_append_sheet(wb, expenseWs, 'Detail Expenses')
         }
 
+        // Inventory purchases are informational and intentionally kept out of
+        // the P&L deduction because they become FIFO HPP when sold.
+        if (purchaseData && purchaseData.details.length > 0) {
+            const purchaseDetails = purchaseData.details.map((purchase, index) => ({
+                'No': index + 1,
+                'Tanggal': formatDate(purchase.transactionDate),
+                'SKU': purchase.sku,
+                'Sparepart': purchase.name,
+                'Kategori': purchase.category,
+                'Supplier': purchase.supplierName,
+                'Qty': purchase.quantity,
+                'Harga per Unit': purchase.unitCost,
+                'Total Pembelian': purchase.totalAmount,
+                'Sisa Batch': purchase.remainingQuantity ?? '-',
+                'Catatan': purchase.reason || '-',
+            }))
+            const purchaseWs = XLSX.utils.json_to_sheet(purchaseDetails)
+            purchaseWs['!cols'] = [
+                { wch: 5 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 15 },
+                { wch: 22 }, { wch: 8 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 30 },
+            ]
+            XLSX.utils.book_append_sheet(wb, purchaseWs, 'Pembelian Stok')
+        }
+
         const dateStr = new Date().toISOString().split('T')[0]
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
         const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -533,7 +579,8 @@ export function useExport() {
         summary: PnLSummary & { totalExpenses?: number; netProfit?: number; netProfitMargin?: number },
         period: { startDate: string, endDate: string },
         categoryBreakdown?: PnLCategoryBreakdown,
-        expenseData?: ExpenseData
+        expenseData?: ExpenseData,
+        purchaseData?: PurchaseData,
     ) => {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
@@ -686,6 +733,39 @@ export function useExport() {
             headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
         })
 
+        if (purchaseData && purchaseData.details.length > 0) {
+            const purchaseY = (doc as any).lastAutoTable.finalY + 10
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.text('Pembelian Stok Sparepart', 14, purchaseY)
+            doc.setFontSize(8)
+            doc.setFont('helvetica', 'normal')
+            doc.text('Informasi persediaan; tidak dikurangkan lagi dari laba karena diakui melalui HPP FIFO.', 14, purchaseY + 5)
+
+            autoTable(doc, {
+                head: [['Tanggal', 'Sparepart', 'Qty', 'Harga/Unit', 'Total', 'Sisa']],
+                body: purchaseData.details.map(purchase => [
+                    formatDate(purchase.transactionDate),
+                    purchase.name,
+                    purchase.quantity,
+                    formatCurrency(purchase.unitCost),
+                    formatCurrency(purchase.totalAmount),
+                    purchase.remainingQuantity ?? '-',
+                ]),
+                startY: purchaseY + 8,
+                styles: { fontSize: 7, cellPadding: 2 },
+                headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+                columnStyles: {
+                    0: { cellWidth: 22 },
+                    1: { cellWidth: 48 },
+                    2: { cellWidth: 12, halign: 'right' },
+                    3: { cellWidth: 34, halign: 'right' },
+                    4: { cellWidth: 34, halign: 'right' },
+                    5: { cellWidth: 15, halign: 'right' },
+                },
+            })
+        }
+
         // Footer
         const pageCount = doc.getNumberOfPages()
         for (let i = 1; i <= pageCount; i++) {
@@ -835,4 +915,3 @@ export function useExport() {
         exportInventoryToPDF,
     }
 }
-

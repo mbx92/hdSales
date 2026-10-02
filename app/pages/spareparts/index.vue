@@ -66,16 +66,37 @@ const goToPage = (page: number) => {
 // Stock adjustment modal
 const showAdjustModal = ref(false)
 const adjustItem = ref<Sparepart | null>(null)
-const adjustForm = ref({
+const adjustForm = ref<{
+  quantity: number
+  type: string
+  reason: string
+  unitCost: number | string
+  purchaseDate: string
+}>({
   quantity: 0,
   type: 'PURCHASE',
-  reason: ''
+  reason: '',
+  unitCost: 0,
+  purchaseDate: '',
 })
 const adjusting = ref(false)
+const isStockIncrease = computed(() => ['PURCHASE', 'RETURN'].includes(adjustForm.value.type))
+
+const getLocalDate = () => {
+  const now = new Date()
+  const offset = now.getTimezoneOffset() * 60_000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}
 
 const openAdjustModal = (item: Sparepart) => {
   adjustItem.value = item
-  adjustForm.value = { quantity: 0, type: 'PURCHASE', reason: '' }
+  adjustForm.value = {
+    quantity: 0,
+    type: 'PURCHASE',
+    reason: '',
+    unitCost: item.purchasePrice,
+    purchaseDate: getLocalDate(),
+  }
   showAdjustModal.value = true
 }
 
@@ -97,6 +118,11 @@ const submitAdjustment = async () => {
     return showError(`Jumlah pengurangan melebihi stok saat ini (${adjustItem.value.stock})`)
   }
 
+  const unitCost = Number(adjustForm.value.unitCost)
+  if (!isReduction && (!Number.isFinite(unitCost) || unitCost < 0)) {
+    return showError('Harga beli per unit wajib diisi dan tidak boleh negatif')
+  }
+
   adjusting.value = true
   try {
     await $fetch(`/api/spareparts/${adjustItem.value.id}/stock-adjustment`, {
@@ -104,6 +130,7 @@ const submitAdjustment = async () => {
       body: {
         ...adjustForm.value,
         quantity,
+        unitCost,
       }
     })
     showSuccess('Stok berhasil disesuaikan')
@@ -326,8 +353,9 @@ const toggleStatus = async (item: Sparepart) => {
       <p>Coba gunakan kata kunci lain atau tambahkan produk baru</p>
     </div>
 
-    <!-- Stock Adjustment Modal -->
-    <dialog :class="['modal', { 'modal-open': showAdjustModal }]">
+    <!-- Teleport avoids clipping and stacking-context issues inside page cards. -->
+    <Teleport to="body">
+      <dialog :class="['modal', { 'modal-open': showAdjustModal }]">
       <div class="modal-box">
         <h3 class="font-bold text-lg mb-4">Penyesuaian Stok</h3>
         <div v-if="adjustItem" class="space-y-4">
@@ -348,6 +376,29 @@ const toggleStatus = async (item: Sparepart) => {
               <span class="label-text-alt text-info">Kasir hanya dapat menambah stok. Stok berkurang otomatis melalui POS.</span>
             </label>
           </div>
+
+          <div v-if="isStockIncrease" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">Harga Beli per Unit</span></label>
+              <ThousandsInput
+                v-model="adjustForm.unitCost"
+                class="input input-bordered bg-base-300"
+                placeholder="Masukkan harga beli"
+              />
+              <label class="label py-1">
+                <span class="label-text-alt text-base-content/60">Harga ini disimpan sebagai batch FIFO baru.</span>
+              </label>
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Tanggal Pembelian</span></label>
+              <input
+                v-model="adjustForm.purchaseDate"
+                type="date"
+                class="input input-bordered bg-base-300"
+                required
+              />
+            </div>
+          </div>
           
           <div class="form-control">
             <label class="label"><span class="label-text">Jumlah</span></label>
@@ -359,11 +410,14 @@ const toggleStatus = async (item: Sparepart) => {
               step="1"
               placeholder="Masukkan jumlah unit"
             />
-            <label class="label" v-if="adjustItem.purchasePrice">
+            <label class="label">
               <span class="label-text-alt">
-                {{ adjustForm.type === 'PURCHASE' || adjustForm.type === 'RETURN' ? 'Stok bertambah' : 'Stok berkurang' }}
+                {{ isStockIncrease ? 'Stok bertambah' : 'Stok berkurang' }}
                 {{ Math.abs(adjustForm.quantity) || 0 }} unit
-                • Total: {{ formatCurrency(Math.abs(adjustForm.quantity) * adjustItem.purchasePrice) }}
+                <template v-if="isStockIncrease">
+                  • Total: {{ formatCurrency((Math.abs(adjustForm.quantity) || 0) * (Number(adjustForm.unitCost) || 0)) }}
+                </template>
+                <template v-else>• HPP dihitung otomatis dengan FIFO</template>
               </span>
             </label>
           </div>
@@ -375,13 +429,18 @@ const toggleStatus = async (item: Sparepart) => {
         </div>
         <div class="modal-action">
           <button @click="showAdjustModal = false" class="btn btn-ghost">Batal</button>
-          <button @click="submitAdjustment" class="btn btn-primary" :disabled="adjusting || !adjustForm.quantity">
+          <button
+            @click="submitAdjustment"
+            class="btn btn-primary"
+            :disabled="adjusting || !adjustForm.quantity || (isStockIncrease && !adjustForm.purchaseDate)"
+          >
             <span v-if="adjusting" class="loading loading-spinner loading-sm"></span>
             Simpan
           </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="showAdjustModal = false"></form>
-    </dialog>
+      </dialog>
+    </Teleport>
   </div>
 </template>

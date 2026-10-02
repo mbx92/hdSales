@@ -310,7 +310,7 @@ const handleExportPDF = async () => {
                                     <th>SKU</th>
                                     <th>Kategori</th>
                                     <th class="text-right">Stok</th>
-                                    <th class="text-right">Harga Beli</th>
+                                    <th class="text-right">Rata-rata HPP FIFO</th>
                                     <th class="text-right">Total Nilai</th>
                                 </tr>
                             </thead>
@@ -329,7 +329,7 @@ const handleExportPDF = async () => {
                                     <td class="text-right">
                                         <span :class="['font-bold', s.stock <= s.minStock ? 'text-warning' : '']">{{ s.stock }}</span>
                                     </td>
-                                    <td class="text-right font-mono">{{ formatCurrency(s.purchasePrice) }}</td>
+                                    <td class="text-right font-mono">{{ formatCurrency(s.averageCost) }}</td>
                                     <td class="text-right font-mono font-bold">{{ formatCurrency(s.totalValue) }}</td>
                                 </tr>
                             </tbody>

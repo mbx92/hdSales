@@ -134,7 +134,10 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
               {{ formatCurrency(sparepart.sellingPrice, sparepart.currency) }}
             </div>
             <p class="text-xs text-base-content/60 mt-1">
-              HPP: {{ formatCurrency(sparepart.purchasePrice, sparepart.currency) }}
+              Harga beli terakhir: {{ formatCurrency(sparepart.purchasePrice, sparepart.currency) }}
+            </p>
+            <p v-if="sparepart.category !== 'SERVICE'" class="text-xs text-base-content/60">
+              Nilai stok FIFO: {{ formatCurrency(sparepart.inventoryValue || 0, sparepart.currency) }}
             </p>
           </div>
         </div>
@@ -164,6 +167,45 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
             </div>
           </div>
 
+          <!-- Purchase History -->
+          <div v-if="sparepart.category !== 'SERVICE'" class="card bg-base-200 border border-base-300">
+            <div class="card-body">
+              <h3 class="font-bold mb-4 flex items-center gap-2">
+                <IconHistory class="w-5 h-5" /> Riwayat Pembelian
+              </h3>
+
+              <div v-if="sparepart.stockAdjustments?.length" class="overflow-x-auto">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th class="text-right">Qty</th>
+                      <th class="text-right">Harga/Unit</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Sisa Batch</th>
+                      <th>Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="purchase in sparepart.stockAdjustments" :key="purchase.id">
+                      <td>{{ new Date(purchase.createdAt).toLocaleDateString('id-ID') }}</td>
+                      <td class="text-right font-mono">{{ purchase.quantity }}</td>
+                      <td class="text-right font-mono">{{ formatCurrency(purchase.unitCost, sparepart.currency) }}</td>
+                      <td class="text-right font-mono font-bold">{{ formatCurrency(purchase.totalAmount, sparepart.currency) }}</td>
+                      <td class="text-right font-mono">
+                        {{ purchase.stockBatch?.remainingQuantity ?? '-' }}
+                      </td>
+                      <td class="text-sm text-base-content/60">{{ purchase.reason || '-' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-else class="text-center py-8 text-base-content/40">
+                Belum ada riwayat pembelian. Stok awal tercatat sebagai opening balance.
+              </div>
+            </div>
+          </div>
+
           <!-- Sales History -->
           <div class="card bg-base-200 border border-base-300">
             <div class="card-body">
@@ -179,6 +221,8 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
                       <th>Invoice</th>
                       <th>Qty</th>
                       <th>Harga Satuan</th>
+                      <th>HPP</th>
+                      <th>Laba</th>
                       <th>Total</th>
                     </tr>
                   </thead>
@@ -190,6 +234,10 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
                       </td>
                       <td>{{ item.quantity }}</td>
                       <td>{{ formatCurrency(item.unitPrice, sparepart.currency) }}</td>
+                      <td>{{ formatCurrency(item.costOfGoods, sparepart.currency) }}</td>
+                      <td :class="item.profit >= 0 ? 'text-success' : 'text-error'">
+                        {{ formatCurrency(item.profit, sparepart.currency) }}
+                      </td>
                       <td class="font-bold">{{ formatCurrency(item.subtotal, sparepart.currency) }}</td>
                     </tr>
                   </tbody>
@@ -204,6 +252,29 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
 
         <!-- Sidebar Info -->
         <div class="space-y-6">
+          <div v-if="sparepart.category !== 'SERVICE'" class="card bg-base-200 border border-base-300">
+            <div class="card-body">
+              <h3 class="font-bold mb-2">Batch FIFO Aktif</h3>
+              <div v-if="sparepart.stockBatches?.length" class="space-y-2">
+                <div
+                  v-for="batch in sparepart.stockBatches"
+                  :key="batch.id"
+                  class="rounded-lg bg-base-300 p-3 text-sm"
+                >
+                  <div class="flex justify-between gap-3">
+                    <span>{{ new Date(batch.receivedAt).toLocaleDateString('id-ID') }}</span>
+                    <span class="font-mono font-bold">{{ batch.remainingQuantity }} unit</span>
+                  </div>
+                  <div class="mt-1 flex justify-between gap-3 text-xs text-base-content/60">
+                    <span>{{ batch.sourceType }}</span>
+                    <span>{{ formatCurrency(batch.unitCost, sparepart.currency) }}/unit</span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-sm text-base-content/40">Tidak ada batch stok aktif.</p>
+            </div>
+          </div>
+
           <div class="card bg-base-200 border border-base-300">
             <div class="card-body text-sm">
               <h3 class="font-bold mb-2">Info Tambahan</h3>
@@ -258,9 +329,9 @@ const formatCurrency = (value: number, currency: string = 'IDR') => {
             </div>
             <div class="form-control">
               <label class="label"><span class="label-text">Stok Saat Ini</span></label>
-              <input v-model="editForm.stock" type="number" class="input input-bordered bg-base-300" :disabled="isCashier" required />
-              <label v-if="isCashier" class="label py-1">
-                <span class="label-text-alt text-info">Tambah stok melalui tombol penyesuaian stok pada daftar sparepart.</span>
+              <input v-model="editForm.stock" type="number" class="input input-bordered bg-base-300" disabled />
+              <label class="label py-1">
+                <span class="label-text-alt text-info">Ubah stok melalui Penyesuaian Stok agar batch FIFO tetap akurat.</span>
               </label>
             </div>
              <div class="form-control">

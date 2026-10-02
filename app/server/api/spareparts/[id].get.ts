@@ -15,6 +15,27 @@ export default defineEventHandler(async (event) => {
                 include: {
                     sale: true
                 }
+            },
+            stockBatches: {
+                where: { remainingQuantity: { gt: 0 } },
+                orderBy: [
+                    { receivedAt: 'asc' },
+                    { createdAt: 'asc' },
+                ],
+            },
+            stockAdjustments: {
+                where: { type: 'PURCHASE' },
+                orderBy: [
+                    { createdAt: 'desc' },
+                    { id: 'desc' },
+                ],
+                include: {
+                    stockBatch: {
+                        select: {
+                            remainingQuantity: true,
+                        },
+                    },
+                },
             }
         }
     })
@@ -26,5 +47,11 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    return sparepart
+    return {
+        ...sparepart,
+        inventoryValue: sparepart.stockBatches.reduce(
+            (sum, batch) => sum + (batch.remainingQuantity * batch.unitCost),
+            0,
+        ),
+    }
 })

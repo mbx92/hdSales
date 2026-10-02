@@ -46,6 +46,12 @@ export default defineEventHandler(async (event) => {
             { createdAt: 'desc' },
             { id: 'desc' },
         ],
+        include: {
+            stockBatches: {
+                where: { remainingQuantity: { gt: 0 } },
+                select: { remainingQuantity: true, unitCost: true },
+            },
+        },
     })
 
     // Calculate totals for motorcycles
@@ -83,6 +89,10 @@ export default defineEventHandler(async (event) => {
 
     // Calculate totals for spareparts
     const sparepartAssets = spareparts.map((s) => {
+        const totalValue = s.stockBatches.reduce(
+            (sum, batch) => sum + (batch.remainingQuantity * batch.unitCost),
+            0,
+        )
         return {
             id: s.id,
             type: 'Sparepart',
@@ -93,7 +103,8 @@ export default defineEventHandler(async (event) => {
             stock: s.stock,
             minStock: s.minStock,
             purchasePrice: s.purchasePrice,
-            totalValue: s.stock * s.purchasePrice,
+            averageCost: s.stock > 0 ? totalValue / s.stock : 0,
+            totalValue,
             status: s.status,
             createdAt: s.createdAt,
         }

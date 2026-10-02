@@ -123,6 +123,38 @@ export default defineEventHandler(async (event) => {
 
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amountIdr, 0)
 
+    // Purchases are shown in this report for inventory monitoring, but are not
+    // deducted from profit here. Their cost enters P&L as FIFO HPP when sold.
+    const stockPurchases = await prisma.stockAdjustment.findMany({
+        where: {
+            type: 'PURCHASE',
+            createdAt: {
+                gte: startDate,
+                lte: endDate,
+            },
+            sparepart: { userId },
+        },
+        include: {
+            sparepart: {
+                select: {
+                    name: true,
+                    sku: true,
+                    category: true,
+                    supplier: {
+                        select: { name: true },
+                    },
+                },
+            },
+            stockBatch: {
+                select: { remainingQuantity: true },
+            },
+        },
+        orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+        ],
+    })
+
     // Get sparepart sales for this user
     const sparepartSales = await prisma.sparepartSale.findMany({
         where: {
@@ -139,7 +171,6 @@ export default defineEventHandler(async (event) => {
                         select: {
                             name: true,
                             category: true,
-                            purchasePrice: true,
                             currency: true,
                         },
                     },
@@ -169,14 +200,14 @@ export default defineEventHandler(async (event) => {
             productCategories[category] = { count: 0, revenue: 0, hpp: 0, profit: 0 }
         }
         productCategories[category].count++
-        productCategories[category].revenue += sale.sellingPriceIdr
+        productCategories[category].revenue += sale.paidAmount
         productCategories[category].hpp += sale.totalCost
         productCategories[category].profit += sale.profit || 0
     })
 
     const productStats = {
         count: productSales.length,
-        totalRevenue: productSales.reduce((sum, s) => sum + s.sellingPriceIdr, 0),
+        totalRevenue: productSales.reduce((sum, s) => sum + s.paidAmount, 0),
         totalHPP: productSales.reduce((sum, s) => sum + s.totalCost, 0),
         totalProfit: productSales.reduce((sum, s) => sum + (s.profit || 0), 0),
         categories: productCategories,
@@ -192,21 +223,20 @@ export default defineEventHandler(async (event) => {
                 sparepartCategories[category] = { count: 0, revenue: 0, hpp: 0, profit: 0 }
             }
             sparepartCategories[category].count++
-            sparepartCategories[category].revenue += item.subtotal
-            const hpp = item.sparepart.purchasePrice * item.quantity
-            sparepartCategories[category].hpp += hpp
-            sparepartCategories[category].profit += (item.subtotal - hpp)
+            sparepartCategories[category].revenue += item.netRevenue
+            sparepartCategories[category].hpp += item.costOfGoods
+            sparepartCategories[category].profit += item.profit
         })
     })
 
     const sparepartStats = {
         count: sparepartSales.length,
         itemCount: sparepartSales.reduce((sum, s) => sum + s.items.length, 0),
-        totalRevenue: sparepartSales.reduce((sum, s) => sum + s.total, 0),
+        totalRevenue: sparepartSales.reduce((sum, sale) => {
+            return sum + sale.items.reduce((itemSum, item) => itemSum + item.netRevenue, 0)
+        }, 0),
         totalHPP: sparepartSales.reduce((sum, sale) => {
-            return sum + sale.items.reduce((itemSum, item) => {
-                return itemSum + (item.sparepart.purchasePrice * item.quantity)
-            }, 0)
+            return sum + sale.items.reduce((itemSum, item) => itemSum + item.costOfGoods, 0)
         }, 0),
         totalProfit: 0,
         categories: sparepartCategories,
@@ -251,7 +281,7 @@ export default defineEventHandler(async (event) => {
             buyerName: s.buyerName,
             saleDate: s.saleDate,
             createdAt: s.createdAt,
-            sellingPrice: s.sellingPriceIdr,
+            sellingPrice: s.paidAmount,
             hpp: s.totalCost,
             profit: s.profit,
             profitMargin: s.profitMargin,
@@ -263,9 +293,10 @@ export default defineEventHandler(async (event) => {
             })),
         })),
         ...sparepartSales.map(s => {
-            const totalHpp = s.items.reduce((sum, item) => sum + (item.sparepart.purchasePrice * item.quantity), 0)
-            const profit = s.total - totalHpp
-            const margin = s.total > 0 ? (profit / s.total) * 100 : 0
+            const netRevenue = s.items.reduce((sum, item) => sum + item.netRevenue, 0)
+            const totalHpp = s.items.reduce((sum, item) => sum + item.costOfGoods, 0)
+            const profit = s.items.reduce((sum, item) => sum + item.profit, 0)
+            const margin = netRevenue > 0 ? (profit / netRevenue) * 100 : 0
             return {
                 id: s.id,
                 invoiceNumber: s.invoiceNumber,
@@ -275,7 +306,7 @@ export default defineEventHandler(async (event) => {
                 buyerName: s.customerName || '-',
                 saleDate: s.saleDate,
                 createdAt: s.createdAt,
-                sellingPrice: s.total,
+                sellingPrice: netRevenue,
                 hpp: totalHpp,
                 profit: profit,
                 profitMargin: margin,
@@ -283,7 +314,7 @@ export default defineEventHandler(async (event) => {
                 costBreakdown: s.items.map(item => ({
                     component: item.sparepart.category,
                     description: `${item.sparepart.name} x${item.quantity}`,
-                    amount: item.sparepart.purchasePrice * item.quantity,
+                    amount: item.costOfGoods,
                 })),
             }
         }),
@@ -314,6 +345,7 @@ export default defineEventHandler(async (event) => {
             netProfitMargin,
             totalTransactions: motorcycleSales.length + productSales.length + sparepartSales.length,
             totalExpenseCount: expenses.length,
+            totalPurchases: stockPurchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0),
         },
         categoryBreakdown: {
             motorcycle: motorcycleStats,
@@ -325,6 +357,24 @@ export default defineEventHandler(async (event) => {
             count: expenses.length,
             categories: expenseCategories,
             details: expenseDetails,
+        },
+        purchases: {
+            total: stockPurchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0),
+            count: stockPurchases.length,
+            totalQuantity: stockPurchases.reduce((sum, purchase) => sum + purchase.quantity, 0),
+            details: stockPurchases.map(purchase => ({
+                id: purchase.id,
+                transactionDate: purchase.createdAt,
+                name: purchase.sparepart.name,
+                sku: purchase.sparepart.sku,
+                category: purchase.sparepart.category,
+                supplierName: purchase.sparepart.supplier?.name || '-',
+                quantity: purchase.quantity,
+                unitCost: purchase.unitCost,
+                totalAmount: purchase.totalAmount,
+                remainingQuantity: purchase.stockBatch?.remainingQuantity ?? null,
+                reason: purchase.reason,
+            })),
         },
         salesDetails,
     }

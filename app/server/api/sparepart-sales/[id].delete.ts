@@ -1,6 +1,7 @@
 import prisma from '../../utils/prisma'
 import { requireUser } from '../../utils/requireUser'
 import { getUserFromEvent } from '../../utils/jwt'
+import { lockSparepart, restoreSaleItemFifo } from '../../utils/sparepartFifo'
 
 export default defineEventHandler(async (event) => {
     const userId = requireUser(event)
@@ -35,9 +36,16 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 404, message: 'Transaksi tidak ditemukan' })
         }
 
-        // 2. Restore stock for each item (skip SERVICE category)
-        for (const item of sale.items) {
+        // 2. Restore stock to the exact FIFO layers used by this sale.
+        const physicalItems = sale.items
+            .filter(item => item.sparepart.category !== 'SERVICE')
+            .sort((a, b) => a.sparepartId.localeCompare(b.sparepartId))
+        for (const item of physicalItems) {
+            await lockSparepart(tx, item.sparepartId)
+        }
+        for (const item of physicalItems) {
             if (item.sparepart.category !== 'SERVICE') {
+                await restoreSaleItemFifo(tx, item)
                 await tx.sparepart.update({
                     where: { id: item.sparepartId },
                     data: { stock: { increment: item.quantity } }

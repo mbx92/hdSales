@@ -89,18 +89,10 @@ export default defineEventHandler(async (event) => {
             where: salesDateFilter,
             _sum: { profit: true },
         }),
-        // Get sparepart sales with items for margin calculation
+        // Get immutable FIFO/service margin snapshots.
         prisma.sparepartSale.findMany({
             where: sparepartSalesDateFilter,
-            include: {
-                items: {
-                    include: {
-                        sparepart: {
-                            select: { purchasePrice: true }
-                        }
-                    }
-                }
-            }
+            include: { items: true }
         }),
     ])
 
@@ -119,10 +111,7 @@ export default defineEventHandler(async (event) => {
     const motorcycleProfitTotal = motorcycleProfit._sum?.profit || 0
 
     const sparepartProfitTotal = sparepartSales.reduce((total, sale) => {
-        return total + sale.items.reduce((itemTotal, item) => {
-            const margin = (item.unitPrice - item.sparepart.purchasePrice) * item.quantity
-            return itemTotal + margin
-        }, 0)
+        return total + sale.items.reduce((itemTotal, item) => itemTotal + item.profit, 0)
     }, 0)
 
     const netProfit = motorcycleProfitTotal + sparepartProfitTotal

@@ -48,21 +48,13 @@ export default defineEventHandler(async (event) => {
             },
             _sum: { profit: true },
         }),
-        // Get sparepart sales with items and sparepart data for margin calculation
+        // Get immutable FIFO/service margin snapshots.
         prisma.sparepartSale.findMany({
             where: {
                 userId,
                 saleDate: { gte: startOfMonth, lte: endOfMonth },
             },
-            include: {
-                items: {
-                    include: {
-                        sparepart: {
-                            select: { purchasePrice: true }
-                        }
-                    }
-                }
-            }
+            include: { items: true }
         }),
         // Get total profit from product sales
         prisma.productSale.aggregate({
@@ -91,12 +83,10 @@ export default defineEventHandler(async (event) => {
     // Calculate product profit (margin from product sales)
     const productProfit = monthlyProductProfit._sum?.profit || 0
 
-    // Calculate sparepart profit (margin = sellingPrice - purchasePrice per item)
+    // FIFO HPP is saved when the transaction is posted, so later purchases do
+    // not rewrite historical margin.
     const sparepartProfit = monthlySparepartSales.reduce((total, sale) => {
-        return total + sale.items.reduce((itemTotal, item) => {
-            const margin = (item.unitPrice - item.sparepart.purchasePrice) * item.quantity
-            return itemTotal + margin
-        }, 0)
+        return total + sale.items.reduce((itemTotal, item) => itemTotal + item.profit, 0)
     }, 0)
 
     // Get total expenses
