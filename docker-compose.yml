@@ -13,11 +13,6 @@ services:
       NUXT_JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
     ports:
       - "${APP_PORT:-3019}:3000"
-    labels:
-      # Attach only the server-level Traefik file middleware. Defining docker
-      # middleware chains in compose makes Coolify expand every middleware name
-      # onto the generated router and breaks routing (HTTP 500).
-      - "coolify.traefik.middlewares=billing-gate@file"
     networks:
       - default
       - coolify
