@@ -13,15 +13,6 @@ services:
       NUXT_JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
     ports:
       - "${APP_PORT:-3019}:3000"
-    labels:
-      - "coolify.traefik.middlewares=${COOLIFY_RESOURCE_UUID}-billing-gate"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-key.headers.customrequestheaders.X-Billing-Gate-Key=${BILLING_GATE_SHARED_KEY:?}"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.address=${BILLING_GATE_INTERNAL_URL:-http://host.docker.internal:8010/api/billing-gate/check}"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.preserveLocationHeader=true"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.addAuthCookiesToResponse=billing_notice_ack"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-key-clear.headers.customrequestheaders.X-Billing-Gate-Key="
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-gate.chain.middlewares=${COOLIFY_RESOURCE_UUID}-billing-key,${COOLIFY_RESOURCE_UUID}-billing-forward,${COOLIFY_RESOURCE_UUID}-billing-key-clear"
     networks:
       - default
       - coolify
