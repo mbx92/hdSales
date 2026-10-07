@@ -13,6 +13,15 @@ services:
       NUXT_JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
     ports:
       - "${APP_PORT:-3019}:3000"
+    labels:
+      # Single forwardAuth middleware. Coolify expands every middleware name onto
+      # the router, so multi-middleware chains break with HTTP 500. The shared key
+      # is passed as gate_key on BILLING_GATE_INTERNAL_URL.
+      - "coolify.traefik.middlewares=${COOLIFY_RESOURCE_UUID}-billing@docker"
+      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.address=${BILLING_GATE_INTERNAL_URL}"
+      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.preserveLocationHeader=true"
+      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.addAuthCookiesToResponse=billing_notice_ack"
     networks:
       - default
       - coolify
