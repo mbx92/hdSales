@@ -14,11 +14,10 @@ services:
     ports:
       - "${APP_PORT:-3019}:3000"
     labels:
-      - "coolify.traefik.middlewares=${COOLIFY_RESOURCE_UUID}-billing"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.address=${BILLING_GATE_INTERNAL_URL}"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.preserveLocationHeader=true"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing.forwardauth.addAuthCookiesToResponse=billing_notice_ack"
+      # Reference the shared Traefik file middleware only. Defining docker
+      # middleware chains in compose makes Coolify expand every middleware name
+      # onto the generated router and breaks routing (HTTP 500).
+      - "coolify.traefik.middlewares=billing-gate@file"
     networks:
       - default
       - coolify
