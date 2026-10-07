@@ -14,15 +14,10 @@ services:
     ports:
       - "${APP_PORT:-3019}:3000"
     labels:
-      # BillEngine injects BILLING_GATE_* env. Use @docker so Coolify attaches the chain.
-      - "coolify.traefik.middlewares=${COOLIFY_RESOURCE_UUID}-billing-gate@docker"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-key.headers.customrequestheaders.X-Billing-Gate-Key=${BILLING_GATE_SHARED_KEY}"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.address=${BILLING_GATE_INTERNAL_URL}"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.preserveLocationHeader=true"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-forward.forwardauth.addAuthCookiesToResponse=billing_notice_ack"
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-key-clear.headers.customrequestheaders.X-Billing-Gate-Key="
-      - "traefik.http.middlewares.${COOLIFY_RESOURCE_UUID}-billing-gate.chain.middlewares=${COOLIFY_RESOURCE_UUID}-billing-key,${COOLIFY_RESOURCE_UUID}-billing-forward,${COOLIFY_RESOURCE_UUID}-billing-key-clear"
+      # Attach only the server-level Traefik file middleware. Defining docker
+      # middleware chains in compose makes Coolify expand every middleware name
+      # onto the generated router and breaks routing (HTTP 500).
+      - "coolify.traefik.middlewares=billing-gate@file"
     networks:
       - default
       - coolify
