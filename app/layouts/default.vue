@@ -69,6 +69,8 @@ const logout = async () => {
   await authStore.logout()
   navigateTo('/login')
 }
+
+const userInitial = computed(() => authStore.user?.name?.charAt(0)?.toUpperCase() || 'U')
 </script>
 
 <template>
@@ -87,9 +89,9 @@ const logout = async () => {
         sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 lg:translate-x-0 lg:w-20'
       ]"
     >
-      <div class="h-full overflow-y-auto bg-base-200 border-r border-base-300">
+      <div class="flex h-full flex-col bg-base-200 border-r border-base-300">
         <!-- Logo -->
-        <div class="flex items-center justify-center h-16 border-b border-base-300">
+        <div class="flex h-16 shrink-0 items-center justify-center border-b border-base-300">
           <div class="flex items-center gap-2">
             <img src="/logo.png" alt="DIGARASI" class="w-10 h-10 object-contain" onerror="this.style.display='none'" />
             <span v-if="sidebarOpen" class="text-xl font-bold text-base-content animate-fade-in">
@@ -99,7 +101,7 @@ const logout = async () => {
         </div>
 
         <!-- Menu -->
-        <nav class="p-4 space-y-2">
+        <nav class="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           <NuxtLink
             v-for="item in menuItems"
             :key="item.path"
@@ -119,24 +121,38 @@ const logout = async () => {
         </nav>
 
         <!-- User Info -->
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-base-300">
-          <div v-if="authStore.user" class="flex items-center gap-3">
-            <NuxtLink to="/account" @click="closeSidebar" class="avatar placeholder cursor-pointer hover:ring-2 hover:ring-primary rounded-full transition-all" title="Pengaturan Akun">
-              <div class="bg-primary text-primary-content rounded-full w-10">
-                <span>{{ authStore.user.name?.charAt(0) || 'U' }}</span>
+        <div class="shrink-0 border-t border-base-300 bg-base-200 p-3">
+          <div
+            v-if="authStore.user"
+            :class="sidebarOpen ? 'flex items-center gap-3' : 'flex flex-col items-center gap-2'"
+          >
+            <NuxtLink
+              to="/account"
+              title="Pengaturan Akun"
+              class="avatar placeholder shrink-0 rounded-full transition-all hover:ring-2 hover:ring-primary"
+              @click="closeSidebar"
+            >
+              <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-content">
+                <span>{{ userInitial }}</span>
               </div>
             </NuxtLink>
-            <NuxtLink v-if="sidebarOpen" to="/account" @click="closeSidebar" class="flex-1 animate-fade-in hover:text-primary transition-colors" title="Pengaturan Akun">
-              <p class="text-sm font-medium">{{ authStore.user.name }}</p>
-              <p class="text-xs text-base-content/60">{{ authStore.user.role }}</p>
+            <NuxtLink
+              v-if="sidebarOpen"
+              to="/account"
+              title="Pengaturan Akun"
+              class="min-w-0 flex-1 hover:text-primary transition-colors"
+              @click="closeSidebar"
+            >
+              <p class="truncate text-sm font-medium">{{ authStore.user.name }}</p>
+              <p class="truncate text-xs text-base-content/60">{{ authStore.user.role }}</p>
             </NuxtLink>
             <button
-              v-if="sidebarOpen"
-              @click="logout"
-              class="btn btn-ghost btn-sm btn-square"
+              type="button"
+              class="btn btn-ghost btn-sm btn-square shrink-0"
               title="Logout"
+              @click="logout"
             >
-              <IconLogout class="w-5 h-5" :stroke-width="1.5" />
+              <IconLogout class="h-5 w-5" :stroke-width="1.5" />
             </button>
           </div>
         </div>

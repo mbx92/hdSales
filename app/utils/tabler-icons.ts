@@ -57,6 +57,7 @@ export { default as IconRefresh } from '@tabler/icons-vue/dist/esm/icons/IconRef
 export { default as IconReportAnalytics } from '@tabler/icons-vue/dist/esm/icons/IconReportAnalytics.mjs'
 export { default as IconScale } from '@tabler/icons-vue/dist/esm/icons/IconScale.mjs'
 export { default as IconSearch } from '@tabler/icons-vue/dist/esm/icons/IconSearch.mjs'
+export { default as IconShare } from '@tabler/icons-vue/dist/esm/icons/IconShare.mjs'
 export { default as IconShoppingCart } from '@tabler/icons-vue/dist/esm/icons/IconShoppingCart.mjs'
 export { default as IconSpeakerphone } from '@tabler/icons-vue/dist/esm/icons/IconSpeakerphone.mjs'
 export { default as IconTag } from '@tabler/icons-vue/dist/esm/icons/IconTag.mjs'
