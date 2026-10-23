@@ -5,6 +5,8 @@ service aplikasi:
 
 - `app`: Nuxt/Nitro pada port internal `3000`.
 
+Dockerfile menggunakan Node.js 22.23.4 LTS, sama dengan versi pada `.nvmrc`.
+
 MinIO tidak disertakan karena aplikasi tidak memakai object storage atau API S3.
 PostgreSQL juga tidak dibuat oleh Compose karena aplikasi menggunakan database lama
 yang sudah tersedia di Coolify.

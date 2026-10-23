@@ -4,6 +4,13 @@ Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduct
 
 ## Setup
 
+Use Node.js 22.23.4 LTS, matching the Docker image. With nvm:
+
+```bash
+nvm install
+nvm use
+```
+
 Make sure to install dependencies:
 
 ```bash

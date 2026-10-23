@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Ubuntu/Debian Linux Server
-- Node.js 18+ 
+- Node.js 22.23.4 LTS atau patch 22.x yang lebih baru
 - PostgreSQL 14+
 - Nginx (untuk reverse proxy)
 
@@ -13,9 +13,10 @@
 # Update sistem
 sudo apt update && sudo apt upgrade -y
 
-# Install Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Install Node.js 22 LTS
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
+node --version  # Minimal v22.23.4, tetap pada major 22
 
 # Install PostgreSQL
 sudo apt install -y postgresql postgresql-contrib
@@ -72,6 +73,11 @@ npm run build
 ```
 
 ## 4. Setup Systemd Service
+
+Template service memakai `/root/.nvm/versions/node/v22.23.4/bin/node`; pastikan
+versi tersebut terpasang jika memakai nvm. Jika mengikuti instalasi NodeSource
+di atas, ubah path Node pada `ExecStart` menjadi `/usr/bin/node` sebelum menyalin
+service file.
 
 ```bash
 # Copy service file

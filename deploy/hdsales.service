@@ -10,7 +10,7 @@ WorkingDirectory=/srv/102/apps/hdSales
 EnvironmentFile=/srv/102/apps/hdSales/.env
 Environment="PORT=3003"
 Environment="HOST=0.0.0.0"
-ExecStart=/root/.nvm/versions/node/v22.19.0/bin/node .output/server/index.mjs
+ExecStart=/root/.nvm/versions/node/v22.23.4/bin/node .output/server/index.mjs
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
